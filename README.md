@@ -1,9 +1,13 @@
 # Jeode
 
+[![Discord](https://img.shields.io/discord/1477174015926997155?label=Discord&logo=discord&color=5865F2)](https://discord.gg/FSHq6DaRnX)
+[![License](https://img.shields.io/github/license/Paficent/jeode)](https://github.com/Paficent/jeode/blob/main/LICENSE)
+
 **J**eode: **E**xecution **O**riented **D**evelopment **E**nvironment
 
 A mod loader and framework for the PC version of [My Singing Monsters](https://store.steampowered.com/app/1419170/My_Singing_Monsters/), designed to make loading mods simple and development more powerful.
 
+---
 
 ## Installation
 
@@ -36,6 +40,8 @@ On Linux or macOS, the game won't load a local `winhttp.dll` unless you tell Win
 5. Select `winhttp` in the list, click **Edit**, and set it to **Native, Builtin**.
 6. Click **OK** and launch MSM.
 
+---
+
 ## Mods
 
 Place mods in the `mods/` folder inside your game directory. Each mod is a subfolder with a `manifest.json`, an optional `data` folder.
@@ -51,6 +57,8 @@ My Singing Monsters/
 
 See the [examples](examples/) folder for reference.
 
+---
+
 ## Building Locally
 
 Requires `i686-w64-mingw32` for compilation and standard build tools (`make`, `bash`, etc.)
@@ -61,3 +69,9 @@ Jeode can be built for development or for production:
 ./scripts/build.sh X.X.X.X # Production
 ./scripts/build.sh # Development
 ```
+
+---
+
+## Support
+
+For help, join our [Discord](https://discord.gg/FSHq6DaRnX) or [file an issue](https://github.com/Paficent/jeode/issues).
