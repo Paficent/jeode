@@ -55,17 +55,6 @@ My Singing Monsters/
 
 See the [examples](examples/) folder for reference.
 
-## Building Locally
-
-Requires `i686-w64-mingw32` for compilation and standard build tools (`make`, `bash`, etc.)
-
-Jeode can be built for development or for production:
-
-```sh
-./scripts/build.sh X.X.X.X # Production
-./scripts/build.sh # Development
-```
-
 ## Support
 
 For help, join our [Discord](https://discord.gg/FSHq6DaRnX) or [file an issue](https://github.com/Paficent/jeode/issues).
