@@ -90,10 +90,6 @@ static void force_foreground(HWND hwnd) {
 	if (fore_thread != cur_thread) AttachThreadInput(fore_thread, cur_thread, FALSE);
 }
 
-// -----------------------------------------------------------------------
-// Lua callbacks (called from game's Lua — safe context)
-// -----------------------------------------------------------------------
-
 static int l_console_show(lua_State *) {
 	ensure_console();
 	queue_write([] {
@@ -172,13 +168,6 @@ static int l_console_clear(lua_State *) {
 	return 0;
 }
 
-// -----------------------------------------------------------------------
-// console.read() — coroutine-based async read
-//
-// Yield: stores current coroutine in __console_read_co global, yields
-// Resume: queues Lua snippet via game_luaL_loadbuffer (avoids C lua_resume)
-// -----------------------------------------------------------------------
-
 static void flush_writer() {
 	HANDLE done = CreateEventA(nullptr, TRUE, FALSE, nullptr);
 	if (!done) return;
@@ -216,11 +205,9 @@ static DWORD WINAPI read_thread_proc(LPVOID) {
 	lua_thread_queue([result](lua_State *L) {
 		int base = lua_gettop(L);
 
-		// Store result as global for Lua snippet
 		lua_pushstring(L, result.c_str());
 		lua_setglobal(L, "__console_read_result");
 
-		// Resume coroutine via Lua (avoids C-level lua_resume)
 		int s = game_luaL_loadbuffer(L, CONSOLE_RESUME_LUA, static_cast<int>(strlen(CONSOLE_RESUME_LUA)),
 									 "=console_resume");
 		if (s == 0) game_lua_pcall(L, 0, 0, 0);
@@ -234,7 +221,6 @@ static DWORD WINAPI read_thread_proc(LPVOID) {
 static int l_console_read_line(lua_State *L) {
 	ensure_console();
 
-	// Store current coroutine in global (safe: pushthread + setglobal)
 	lua_pushthread(L);
 	lua_setglobal(L, "__console_read_co");
 
@@ -250,10 +236,6 @@ static int l_console_read_line(lua_State *L) {
 
 	return lua_yield(L, 0);
 }
-
-// -----------------------------------------------------------------------
-// Registration
-// -----------------------------------------------------------------------
 
 void console_api_register(lua_State *L) {
 	lua_newtable(L);

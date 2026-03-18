@@ -3,7 +3,7 @@
 #include <spdlog/spdlog.h>
 #include <sstream>
 
-// TODO: Find a sandbox online once I have more C/Lua functions
+// TODO: Use a prexisting LUAC sandbox or create my own once I have more C/Lua functions
 
 Sandbox::Sandbox() {
 	block_global("loadfile");
@@ -40,26 +40,23 @@ std::string Sandbox::generate_lua(const std::string &env_var) const {
 
 	if (m_allow_unsafe) return out.str();
 
-	spdlog::debug("[sandbox] apply: blocking {} globals...", m_blocked_globals.size());
+	spdlog::debug("[sandbox] generating sandbox: blocking {} globals, {} member groups", m_blocked_globals.size(),
+				  m_blocked_members.size());
+
 	out << "do\n";
 	out << "  local function _blocked() error('blocked unsafe function call') "
 		   "end\n";
 	for (const auto &name : m_blocked_globals) {
-		spdlog::debug("[sandbox] apply: blocking global '{}'", name);
 		out << "  " << env_var << "['" << name << "'] = _blocked\n";
 	}
 
-	spdlog::debug("[sandbox] apply: blocking {} member groups...", m_blocked_members.size());
 	for (const auto &[global, members] : m_blocked_members) {
-		spdlog::debug("[sandbox] apply: processing global '{}'", global);
 		out << "  do\n";
 		out << "    local orig = " << global << "\n";
 		out << "    if type(orig) == 'table' then\n";
 		out << "      " << env_var << "['" << global << "'] = setmetatable({}, {\n";
 		out << "        __index = function(_, k)\n";
-		// Check if this key is blocked
 		for (const auto &member : members) {
-			spdlog::debug("[sandbox] apply: blocking '{}.{}'", global, member);
 			out << "          if k == '" << member << "' then return _blocked end\n";
 		}
 		out << "          return orig[k]\n";

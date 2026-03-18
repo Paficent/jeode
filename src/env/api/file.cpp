@@ -232,13 +232,13 @@ static int l_file_delfile(lua_State *L) {
 	return 0;
 }
 
-// Phase 1: register C functions as globals and set up state
+// TODO: This is extremely messy
 void file_api_init(lua_State *L, const char *gameDir) {
 	s_game_dir = gameDir;
 	std::error_code ec;
 	s_canon_root = fs::canonical(fs::path(gameDir), ec).generic_string();
 
-	spdlog::debug("[env] registering file API (gameDir='{}')...", gameDir);
+	spdlog::debug("[file_api] initialized (gameDir='{}')", gameDir);
 
 	lua_pushcfunction(L, l_file_read);
 	lua_setglobal(L, "__file_read");
@@ -260,7 +260,6 @@ void file_api_init(lua_State *L, const char *gameDir) {
 	lua_setglobal(L, "__file_deleteFile");
 }
 
-// Phase 2: build the file table in Lua and clean up temp globals
 static const char API_BUILD_LUA[] = R"LUA(
 file = {
     read         = __file_read,

@@ -153,7 +153,7 @@ static int env_log(lua_State *L) {
 	const char *msg = lua_tostring(L, 2);
 	std::string p = prefix ? prefix : "mod";
 	std::string m = msg ? msg : "";
-	spdlog::debug("[{}] {}", p, m);
+	spdlog::info("[{}] {}", p, m);
 	overlay_log("[" + p + "] " + m);
 	return 0;
 }
@@ -166,26 +166,24 @@ static int env_overlay_log(lua_State *L) {
 }
 
 static std::string query_game_version(lua_State *L) {
-	spdlog::debug("[query_game_version] L={}", (void *)L);
 	int base = lua_gettop(L);
-	spdlog::debug("[query_game_version] stack base={}", base);
 	const char *src = "return game.versionNumber()";
 	int s = game_luaL_loadbuffer(L, src, static_cast<int>(strlen(src)), "=version_query");
 	if (s != 0) {
+		spdlog::debug("[env] game version query: loadbuffer failed");
 		game_lua_settop(L, base);
 		return {};
 	}
 
-	spdlog::debug("[query_game_version] loadbuffer ok, calling pcall...");
 	s = game_lua_pcall(L, 0, 1, 0);
 	if (s != 0) {
+		spdlog::debug("[env] game version query: pcall failed");
 		game_lua_settop(L, base);
 		return {};
 	}
 
 	const char *ver = lua_tostring(L, -1);
 	std::string result = ver ? ver : "";
-	spdlog::debug("[query_game_version] result='{}'", result);
 	game_lua_settop(L, base);
 	return result;
 }
@@ -356,37 +354,25 @@ const std::string &Environment::mod_root() const {
 }
 
 void Environment::register_apis(lua_State *L, const std::string &gameDirStr) {
-	spdlog::debug("[env] registering APIs...");
-
 	set_global_cfunc(L, "__env_loadchunk", env_loadchunk);
 	set_global_cfunc(L, "__env_loadstring", env_loadstring);
 	set_global_cfunc(L, "__env_log", env_log);
 	set_global_cfunc(L, "__env_overlay_log", env_overlay_log);
 
-	// Console API
-	spdlog::debug("[env] registering console API...");
 	console_api_register(L);
-
-	// File API
-	spdlog::debug("[env] registering file API (gameDir='{}')...", gameDirStr);
 	file_api_init(L, gameDirStr.c_str());
 	file_api_build_table(L);
-
-	// Mod API
-	spdlog::debug("[env] registering mod API...");
 	mod_api_register(L);
 	mod_api_build_table(L);
 
-	spdlog::debug("[env] all APIs registered");
+	spdlog::debug("[env] APIs registered (gameDir='{}')", gameDirStr);
 }
 
 void Environment::load_mods(lua_State *L, const ModLoader *loader, const std::string &activeVersion) {
 	const auto &mods = loader->getAllMods();
 
-	spdlog::debug("[load_mods] begin, L={}, activeVersion='{}'", (void *)L, activeVersion);
-	spdlog::debug("[load_mods] {} mod(s) to process", mods.size());
+	spdlog::info("[env] loading {} mod(s) (game version '{}')", mods.size(), activeVersion);
 
-	spdlog::debug("[load_mods] creating shared table...");
 	{
 		const char *src = "__env_shared = {}";
 		int base = lua_gettop(L);
@@ -394,12 +380,8 @@ void Environment::load_mods(lua_State *L, const ModLoader *loader, const std::st
 		if (s == 0) game_lua_pcall(L, 0, 0, 0);
 		game_lua_settop(L, base);
 	}
-	spdlog::debug("[load_mods] shared table created");
 
-	spdlog::debug("[load_mods] setting __env_loadchunk...");
 	set_global_cfunc(L, "__env_loadchunk", env_loadchunk);
-
-	spdlog::debug("[load_mods] setting __env_shared...");
 
 	std::string sandboxCode = m_sandbox.generate_lua("env");
 
@@ -408,15 +390,10 @@ void Environment::load_mods(lua_State *L, const ModLoader *loader, const std::st
 		const fs::path &modPath = mods[i]->getPath();
 		fs::path entryPath = modPath / manifest.entry;
 
-		spdlog::debug("[load_mods] [{}/{}] mod='{}', entry='{}', path='{}'", i, mods.size(), manifest.id,
-					  manifest.entry, modPath.string());
-
 		if (!fs::exists(entryPath)) {
-			spdlog::debug("[load_mods] '{}': entry file not found, skipping", manifest.id);
+			spdlog::debug("[env] '{}': entry file '{}' not found, skipping", manifest.id, manifest.entry);
 			continue;
 		}
-
-		spdlog::debug("[load_mods] [{}/{}] '{}': entry file exists, checking version...", i, mods.size(), manifest.id);
 
 		if (manifest.error_on_game_update && manifest.game_version != activeVersion) {
 			std::string msg = "Mod '" + manifest.name + "' (" + manifest.id + ") was built for game version " +
@@ -427,7 +404,8 @@ void Environment::load_mods(lua_State *L, const ModLoader *loader, const std::st
 			int choice = MessageBoxA(nullptr, msg.c_str(), "Jeode - Version Mismatch",
 									 MB_YESNO | MB_ICONWARNING | MB_TOPMOST);
 			if (choice != IDYES) {
-				spdlog::info("[sandbox] '{}' skipped by user (version mismatch)", manifest.id);
+				spdlog::info("[env] '{}' skipped by user (version mismatch: mod={}, game={})", manifest.id,
+							 manifest.game_version, activeVersion);
 				overlay_log("[warn] [" + manifest.id + "] skipped (version mismatch)");
 				continue;
 			}
@@ -436,27 +414,17 @@ void Environment::load_mods(lua_State *L, const ModLoader *loader, const std::st
 		std::error_code ec;
 		fs::path canonRoot = fs::canonical(modPath, ec);
 		if (ec) {
-			spdlog::debug("[sandbox] '{}': could not resolve mod path, skipping", manifest.id);
+			spdlog::warn("[env] '{}': could not resolve mod path, skipping", manifest.id);
 			continue;
 		}
 		std::string rootStr = canonRoot.generic_string();
 
-		spdlog::debug("[load_mods] '{}': canonicalizing path...", manifest.id);
-		spdlog::debug("[load_mods] '{}': canonical root='{}'", manifest.id, rootStr);
-
-		spdlog::debug("[load_mods] '{}': creating mod environment...", manifest.id);
-
 		set_mod_context(manifest.id, "mods/" + modPath.filename().string());
 		file_api_set_mod_root(m_mod_root.c_str());
-
-		spdlog::debug("[load_mods] '{}': setting mod context...", manifest.id);
-		spdlog::debug("[load_mods] '{}': setting lua globals...", manifest.id);
 
 		set_global_string(L, "__MOD_ID", manifest.id.c_str());
 		set_global_string(L, "__MOD_ROOT", rootStr.c_str());
 		set_global_string(L, "__MOD_ENTRY", manifest.entry.c_str());
-
-		spdlog::debug("[sandbox] running '{}'...", manifest.id);
 
 		std::string bootstrap;
 		bootstrap.reserve(sizeof(BOOTSTRAP_PRE) + sandboxCode.size() + sizeof(BOOTSTRAP_POST) + 64);
@@ -465,78 +433,63 @@ void Environment::load_mods(lua_State *L, const ModLoader *loader, const std::st
 		bootstrap += BOOTSTRAP_POST;
 
 		int base = lua_gettop(L);
-		spdlog::debug("[load_mods] '{}': lua stack top={}, loading bootstrap...", manifest.id, base);
 
 		int s = game_luaL_loadbuffer(L, bootstrap.c_str(), static_cast<int>(bootstrap.size()), "=sandbox=loader");
 		if (s != 0) {
 			const char *err = lua_tostring(L, -1);
 			std::string errmsg = err ? err : "(unknown)";
-			spdlog::debug("[sandbox] '{}': load error: {}", manifest.id, errmsg);
+			spdlog::error("[env] '{}': bootstrap load error: {}", manifest.id, errmsg);
 			overlay_log("[error] [" + manifest.id + "] " + errmsg);
 			game_lua_settop(L, base);
 			continue;
 		}
 
-		spdlog::debug("[load_mods] '{}': bootstrap loaded, executing...", manifest.id);
 		s = game_lua_pcall(L, 0, 0, 0);
 		if (s != 0) {
 			const char *err = lua_tostring(L, -1);
 			std::string errmsg = err ? err : "(unknown error)";
-			spdlog::debug("[sandbox] '{}': {}", manifest.id, errmsg);
+			spdlog::error("[env] '{}': runtime error: {}", manifest.id, errmsg);
 			overlay_log("[error] [" + manifest.id + "] " + errmsg);
 			game_lua_settop(L, base);
 			continue;
 		}
 
 		game_lua_settop(L, base);
-		spdlog::debug("[sandbox] '{}' loaded successfully", manifest.id);
+		spdlog::info("[env] '{}' loaded successfully", manifest.id);
 	}
 
-	spdlog::debug("[load_mods] all mods processed, cleaning up globals...");
 	clear_global(L, "__MOD_ID");
 	clear_global(L, "__MOD_ROOT");
 	clear_global(L, "__MOD_ENTRY");
 	clear_global(L, "__env_shared");
-	spdlog::debug("[load_mods] cleanup done");
+	spdlog::debug("[env] mod loading complete, globals cleaned up");
 }
 
 void Environment::init(lua_State *L, const ModLoader *loader, const fs::path &gameDir, const JeodeConfig &config) {
 	if (!loader) return;
 
-	spdlog::debug("[env] init called, L={}, loader={}, gameDir='{}'", (void *)L, (void *)loader, gameDir.string());
-
 	m_sandbox.set_allow_unsafe(config.allow_unsafe_functions);
-	spdlog::debug("[env] setting sandbox allow_unsafe={}", config.allow_unsafe_functions);
 	if (config.allow_unsafe_functions) spdlog::warn("[env] unsafe functions are enabled");
 
-	spdlog::debug("[env] querying game version...");
 	std::string gameVersion = query_game_version(L);
-	spdlog::debug("[env] game version query returned: '{}'", gameVersion);
-
 	std::string buildVersion = version::game_version();
-	spdlog::debug("[env] build version: '{}'", buildVersion);
 
 	if (!gameVersion.empty() && gameVersion != buildVersion)
 		spdlog::warn("[env] game version '{}' differs from build version '{}'", gameVersion, buildVersion);
 
 	std::error_code ec;
 	std::string gameDirStr = fs::canonical(gameDir, ec).generic_string();
-	spdlog::debug("[env] canonical gameDir: '{}'", gameDirStr);
 
-	spdlog::debug("[env] registering APIs...");
 	register_apis(L, gameDirStr);
-	spdlog::debug("[env] APIs registered");
 
 	std::string activeVersion = gameVersion.empty() ? buildVersion : gameVersion;
-	spdlog::debug("[env] active version: '{}', mod count: {}", activeVersion, loader->getAllMods().size());
+	spdlog::info("[env] game version: '{}', {} mod(s) to load", activeVersion, loader->getAllMods().size());
 
 	if (!loader->getAllMods().empty()) {
-		spdlog::debug("[env] entering load_mods...");
 		load_mods(L, loader, activeVersion);
-		spdlog::debug("[env] load_mods completed");
 	}
 
-	spdlog::debug("[env] init completed");
+	spdlog::info("[env] environment initialization complete");
 }
 
 void Environment::execute(const std::string &code) {

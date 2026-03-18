@@ -20,7 +20,7 @@ static uintptr_t g_lua_yield = 0;
 
 struct LuaFunc {
 	const char *name;
-	const char *pattern; // IDA style // nullptr = skip scan
+	const char *pattern; // IDA style | nullptr = skip scan
 	uint32_t fallback_rva;
 	uintptr_t *storage;
 	uint8_t prologue; // first byte
@@ -118,12 +118,11 @@ static constexpr int FUNC_COUNT = sizeof(FUNC_TABLE) / sizeof(FUNC_TABLE[0]);
 
 bool game_lua_resolve() {
 	uintptr_t base = memory::base_address();
-	spdlog::debug("[game_lua] exe base: {:#010x}", static_cast<unsigned>(base));
 
 	uintptr_t textStart = 0;
 	size_t textSize = 0;
 	memory::get_text_section(base, &textStart, &textSize);
-	spdlog::debug("[game_lua] .text: {:#010x} size {:#x}", static_cast<unsigned>(textStart),
+	spdlog::debug("[game_lua] .text section at {:#010x} (size {:#x})", static_cast<unsigned>(textStart),
 				  static_cast<unsigned>(textSize));
 
 	bool all_ok = true;
@@ -135,21 +134,24 @@ bool game_lua_resolve() {
 		if (f.pattern) addr = memory::pattern_scan(textStart, textSize, f.pattern);
 
 		if (addr) {
-			spdlog::info("[game_lua] {} found via pattern at {:#010x}", f.name, static_cast<unsigned>(addr));
+			spdlog::info("[game_lua] {} resolved via pattern at {:#010x}", f.name, static_cast<unsigned>(addr));
 		} else {
 			addr = base + f.fallback_rva;
-			spdlog::warn("[game_lua] {} pattern miss — fallback RVA {:#010x}", f.name, static_cast<unsigned>(addr));
+			spdlog::warn("[game_lua] {} pattern miss, using fallback RVA {:#010x}", f.name,
+						 static_cast<unsigned>(addr));
 		}
 
 		auto prologue = *reinterpret_cast<const uint8_t *>(addr);
 		if (prologue != f.prologue) {
-			spdlog::error("[game_lua] {} bad prologue: expected {:#04x}, got {:#04x}", f.name, f.prologue, prologue);
+			spdlog::error("[game_lua] {} bad prologue at {:#010x}: expected {:#04x}, got {:#04x}", f.name,
+						  static_cast<unsigned>(addr), f.prologue, prologue);
 			all_ok = false;
 		}
 
 		*f.storage = addr;
 	}
 
+	if (all_ok) spdlog::info("[game_lua] all {} lua functions resolved", FUNC_COUNT);
 	return all_ok;
 }
 

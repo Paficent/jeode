@@ -30,16 +30,14 @@ void file_hook_on_game_ready(file_hook_game_ready_cb callback) {
 static void check_loaded(const std::string &rel) {
 	if (g_ready_fired.load(std::memory_order_acquire) || !g_ready_cb) return;
 	if (g_ready_pending.load(std::memory_order_acquire)) {
-		spdlog::debug("[file_hook] check_loaded: ready_pending=true, firing callback on rel='{}'", rel);
 		if (!g_ready_fired.exchange(true, std::memory_order_acq_rel)) {
-			spdlog::debug("[file_hook] check_loaded: calling g_ready_cb...");
+			spdlog::debug("[file_hook] game ready trigger fired on '{}'", rel);
 			g_ready_cb();
-			spdlog::debug("[file_hook] check_loaded: g_ready_cb returned");
 		}
 		return;
 	}
 	if (rel.find("gfx/menu/bbb_logo_loading_screen.") != std::string::npos) {
-		spdlog::debug("[file_hook] check_loaded: loading screen texture detected, setting pending");
+		spdlog::debug("[file_hook] loading screen texture detected, arming game-ready trigger");
 		g_ready_pending.store(true, std::memory_order_release);
 	}
 }
@@ -167,11 +165,9 @@ static FILE *__cdecl hooked_wfopen(const wchar_t *filename, const wchar_t *mode)
 		std::wstring abs = resolve_w(filename);
 		const std::string *replacement = find_override_w(abs);
 		if (replacement) {
-			spdlog::debug("[file_hook] _wfopen override: {} -> {}", wide_to_utf8(filename), *replacement);
+			spdlog::debug("[file_hook] override: {} -> {}", wide_to_utf8(filename), *replacement);
 			std::wstring widePath = utf8_to_wide(*replacement);
-			FILE *f = g_orig_wfopen(widePath.c_str(), mode);
-			spdlog::debug("[file_hook] _wfopen override result: {}", (void *)f);
-			return f;
+			return g_orig_wfopen(widePath.c_str(), mode);
 		}
 	}
 	if (filename) spdlog::trace("[file_hook] _wfopen: {}", wide_to_utf8(filename));
@@ -215,17 +211,17 @@ static void *resolve_crt(const char *func) {
 
 static bool install_hook(void *target, void *detour, void **original, const char *name) {
 	if (!target) {
-		spdlog::debug("[file_hook] {}: not found", name);
+		spdlog::warn("[file_hook] {}: symbol not found, skipping", name);
 		return false;
 	}
 	MH_STATUS s = MH_CreateHook(target, detour, original);
 	if (s != MH_OK) {
-		spdlog::debug("[file_hook] MH_CreateHook({}): {}", name, MH_StatusToString(s));
+		spdlog::warn("[file_hook] MH_CreateHook({}) failed: {}", name, MH_StatusToString(s));
 		return false;
 	}
 	s = MH_EnableHook(target);
 	if (s != MH_OK) {
-		spdlog::debug("[file_hook] MH_EnableHook({}): {}", name, MH_StatusToString(s));
+		spdlog::warn("[file_hook] MH_EnableHook({}) failed: {}", name, MH_StatusToString(s));
 		return false;
 	}
 	return true;
@@ -236,7 +232,7 @@ bool file_hook_install() {
 	g_pwfopen = resolve_crt("_wfopen");
 	g_pwfopen_s = resolve_crt("_wfopen_s");
 
-	spdlog::debug("[file_hook] fopen @ {}, _wfopen @ {}, _wfopen_s @ {}", g_pfopen, g_pwfopen, g_pwfopen_s);
+	spdlog::debug("[file_hook] resolved fopen={}, _wfopen={}, _wfopen_s={}", g_pfopen, g_pwfopen, g_pwfopen_s);
 
 	bool ok = true;
 	if (g_pwfopen)
@@ -267,7 +263,6 @@ static std::wstring build_dat_base_path() {
 }
 
 void file_hook_configure(const ModLoader *loader, const fs::path &dllDir) {
-	spdlog::debug("[file_hook] configure: loader={}, dllDir='{}'", (void *)loader, dllDir.string());
 	g_loader = loader;
 
 	std::wstring dataDir = (dllDir / "data").wstring() + L"\\";
@@ -275,16 +270,16 @@ void file_hook_configure(const ModLoader *loader, const fs::path &dllDir) {
 	g_dataBaseA = wide_to_utf8(g_dataBaseW.c_str());
 
 	std::wstring datDir = build_dat_base_path();
-	if (datDir.empty()) spdlog::debug("[file_hook] WARNING: could not resolve LocalLow path");
+	if (datDir.empty()) spdlog::warn("[file_hook] could not resolve LocalLow save data path");
 	g_datBaseW = normalize_path(datDir);
 	g_datBaseA = wide_to_utf8(g_datBaseW.c_str());
 
-	spdlog::debug("[file_hook] data base: {}", g_dataBaseA);
-	if (!g_datBaseA.empty()) spdlog::debug("[file_hook] dat base: {}", g_datBaseA);
+	spdlog::debug("[file_hook] data base: '{}'", g_dataBaseA);
+	if (!g_datBaseA.empty()) spdlog::debug("[file_hook] dat base: '{}'", g_datBaseA);
 
 	g_configured = true;
-	spdlog::debug("[file_hook] active: {} asset + {} dat override(s), configured=true",
-				  loader->getAllOverrides().size(), loader->getAllDatOverrides().size());
+	spdlog::info("[file_hook] active with {} asset + {} dat override(s)", loader->getAllOverrides().size(),
+				 loader->getAllDatOverrides().size());
 }
 
 void file_hook_shutdown() {

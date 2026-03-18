@@ -76,7 +76,8 @@ void sanitize(Manifest &m) {
 	if (!m.native_entry.empty()) {
 		if (m.native_entry.find("..") != std::string::npos || m.native_entry.find('/') != std::string::npos ||
 			m.native_entry.find('\\') != std::string::npos) {
-			spdlog::debug("[schema] mod '{}': native_entry '{}' rejected", m.id, m.native_entry);
+			spdlog::warn("[schema] mod '{}': native_entry '{}' contains path traversal, rejected", m.id,
+						 m.native_entry);
 			m.native_entry.clear();
 		}
 	}
@@ -84,23 +85,23 @@ void sanitize(Manifest &m) {
 
 bool validate(const Manifest &m, const fs::path &modPath) {
 	if (m.id.empty() || m.id == "unknown") {
-		spdlog::debug("[schema] mod at '{}' has invalid id", modPath.string());
+		spdlog::warn("[schema] mod at '{}' has invalid or empty id", modPath.string());
 		return false;
 	}
 
 	fs::path entryPath = modPath / m.entry;
-	if (!fs::exists(entryPath)) spdlog::debug("[schema] mod '{}': entry file '{}' not found", m.id, entryPath.string());
+	if (!fs::exists(entryPath)) spdlog::warn("[schema] mod '{}': entry file '{}' not found", m.id, entryPath.string());
 
 	if (!m.native_entry.empty()) {
 		fs::path nativePath = modPath / m.native_entry;
 		if (!fs::exists(nativePath))
-			spdlog::debug("[schema] mod '{}': native_entry '{}' not found", m.id, nativePath.string());
+			spdlog::warn("[schema] mod '{}': native_entry '{}' not found", m.id, nativePath.string());
 	}
 
 	for (auto &[gamePath, modFile] : m.assets.overrides) {
 		fs::path src = modPath / modFile;
 		if (!fs::exists(src)) {
-			spdlog::debug("[schema] mod '{}': override source '{}' does not exist", m.id, src.string());
+			spdlog::warn("[schema] mod '{}': override source '{}' does not exist", m.id, src.string());
 			return false;
 		}
 	}
@@ -108,7 +109,7 @@ bool validate(const Manifest &m, const fs::path &modPath) {
 	for (auto &[datPath, modFile] : m.assets.dat_overrides) {
 		fs::path src = modPath / modFile;
 		if (!fs::exists(src)) {
-			spdlog::debug("[schema] mod '{}': dat override source '{}' does not exist", m.id, src.string());
+			spdlog::warn("[schema] mod '{}': dat override source '{}' does not exist", m.id, src.string());
 			return false;
 		}
 	}

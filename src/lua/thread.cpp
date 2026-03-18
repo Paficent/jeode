@@ -34,7 +34,7 @@ void lua_thread_queue(std::function<void(lua_State *)> work) {
 		if (L)
 			work(L);
 		else
-			spdlog::error("[lua_thread] work queued but no lua state");
+			spdlog::error("[lua_thread] work item queued but lua state is not available");
 	});
 }
 
@@ -47,7 +47,7 @@ void lua_thread_queue_sync(std::function<void(lua_State *)> work) {
 
 	HANDLE event = CreateEventA(nullptr, TRUE, FALSE, nullptr);
 	if (!event) {
-		spdlog::error("[lua_thread] CreateEvent failed");
+		spdlog::error("[lua_thread] CreateEvent failed for synchronous queue (error {})", GetLastError());
 		return;
 	}
 

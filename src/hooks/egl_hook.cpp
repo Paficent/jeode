@@ -106,7 +106,7 @@ static bool imgui_init() {
 	g_orig_wndproc = reinterpret_cast<WNDPROC>(
 		SetWindowLongPtrW(g_hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(hooked_wndproc)));
 
-	spdlog::debug("[egl] imgui initialized, hwnd={}", (void *)g_hwnd);
+	spdlog::info("[egl] overlay initialized (hwnd={})", (void *)g_hwnd);
 	g_initialized = true;
 	return true;
 }
@@ -171,24 +171,24 @@ bool egl_hook_install() {
 
 	g_eglSwapBuffers_addr = reinterpret_cast<void *>(GetProcAddress(hEGL, "eglSwapBuffers"));
 	if (!g_eglSwapBuffers_addr) {
-		spdlog::error("[egl] eglSwapBuffers not found");
+		spdlog::error("[egl] eglSwapBuffers export not found in libEGL.dll");
 		return false;
 	}
 
 	MH_STATUS s = MH_CreateHook(g_eglSwapBuffers_addr, reinterpret_cast<void *>(&hooked_eglSwapBuffers),
 								reinterpret_cast<void **>(&g_orig_eglSwapBuffers));
 	if (s != MH_OK) {
-		spdlog::error("[egl] MH_CreateHook: {}", MH_StatusToString(s));
+		spdlog::error("[egl] MH_CreateHook failed: {}", MH_StatusToString(s));
 		return false;
 	}
 
 	s = MH_EnableHook(g_eglSwapBuffers_addr);
 	if (s != MH_OK) {
-		spdlog::error("[egl] MH_EnableHook: {}", MH_StatusToString(s));
+		spdlog::error("[egl] MH_EnableHook failed: {}", MH_StatusToString(s));
 		return false;
 	}
 
-	spdlog::debug("[egl] hook installed at {}", g_eglSwapBuffers_addr);
+	spdlog::info("[egl] hook installed at {}", g_eglSwapBuffers_addr);
 	return true;
 }
 

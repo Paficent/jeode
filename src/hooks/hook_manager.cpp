@@ -22,125 +22,92 @@ static JeodeConfig g_config;
 static std::filesystem::path g_gameDir;
 
 static void on_game_ready() {
-	spdlog::debug("[hooks] on_game_ready fired");
+	spdlog::info("[hooks] game ready, preparing mod environment");
 	lua_State *L = lua_thread_get_state();
 	if (!L || !g_modLoader) {
-		spdlog::debug("[hooks] game ready but lua state ({}) or mod loader ({}) unavailable", (void *)L,
-					  (void *)g_modLoader);
+		spdlog::warn("[hooks] game ready but lua state or mod loader unavailable (L={}, loader={})", (void *)L,
+					 (void *)g_modLoader);
 		return;
 	}
-
-	spdlog::debug("[hooks] L={}, g_modLoader={}", (void *)L, (void *)g_modLoader);
 
 	const ModLoader *loader = g_modLoader;
 	bool nativeEnabled = g_config.enable_native_mods;
 	std::filesystem::path gameDir = g_gameDir;
 	JeodeConfig config = g_config;
 
-	spdlog::debug("[hooks] queuing native_mods_load (nativeEnabled={})...", nativeEnabled);
-	scheduler_queue_work([loader, nativeEnabled]() {
-		spdlog::debug("[hooks] native_mods_load work item executing...");
-		native_mods_load(loader->getAllMods(), nativeEnabled);
-		spdlog::debug("[hooks] native_mods_load work item done");
-	});
+	spdlog::debug("[hooks] queuing native mod load (nativeEnabled={}) and environment init", nativeEnabled);
+	scheduler_queue_work([loader, nativeEnabled]() { native_mods_load(loader->getAllMods(), nativeEnabled); });
 
-	spdlog::debug("[hooks] queuing environment init...");
-	scheduler_queue_work([L, loader, gameDir, config]() {
-		spdlog::debug("[hooks] environment init work item executing, L={}...", (void *)L);
-		get_environment().init(L, loader, gameDir, config);
-		spdlog::debug("[hooks] environment init work item done");
-	});
-
-	spdlog::debug("[hooks] on_game_ready: work items queued");
+	scheduler_queue_work([L, loader, gameDir, config]() { get_environment().init(L, loader, gameDir, config); });
 }
 
 static int __cdecl hooked_luaopen_game(void *L) {
 	spdlog::debug("[hooks] hooked_luaopen_game called, L={}", L);
 	int result = g_orig_luaopen_game(L);
-	spdlog::debug("[hooks] original luaopen_game returned {}", result);
 	lua_thread_set_state(reinterpret_cast<lua_State *>(L));
-	spdlog::debug("[hooks] lua thread state set");
+	spdlog::debug("[hooks] lua thread state captured");
 	return result;
 }
 
 bool hooks_init_early() {
-	spdlog::debug("[hooks] hooks_init_early: initializing MinHook...");
 	MH_STATUS s = MH_Initialize();
 	if (s != MH_OK) {
-		spdlog::error("MinHook init failed: {}", MH_StatusToString(s));
+		spdlog::error("[hooks] MinHook init failed: {}", MH_StatusToString(s));
 		return false;
 	}
 	spdlog::debug("[hooks] MinHook initialized");
 
-	spdlog::debug("[hooks] installing file hook...");
-	if (!file_hook_install())
-		spdlog::debug("File hook install failed (non-fatal)");
-	else
-		spdlog::debug("[hooks] file hook installed");
+	bool file_ok = file_hook_install();
+	bool ssl_ok = ssl_hook_install();
+	bool sched_ok = scheduler_hook_install();
+	bool egl_ok = egl_hook_install();
 
-	spdlog::debug("[hooks] installing SSL hook...");
-	if (!ssl_hook_install())
-		spdlog::debug("SSL hook install failed (non-fatal)");
-	else
-		spdlog::debug("[hooks] SSL hook installed");
+	if (!file_ok) spdlog::warn("[hooks] file hook install failed (non-fatal)");
+	if (!ssl_ok) spdlog::warn("[hooks] SSL hook install failed (non-fatal)");
+	if (!sched_ok) spdlog::warn("[hooks] scheduler hook install failed (non-fatal)");
+	if (!egl_ok) spdlog::warn("[hooks] EGL hook install failed (non-fatal)");
 
-	spdlog::debug("[hooks] installing scheduler hook...");
-	if (!scheduler_hook_install())
-		spdlog::debug("Scheduler hook install failed (non-fatal)");
-	else
-		spdlog::debug("[hooks] scheduler hook installed");
-
-	spdlog::debug("[hooks] installing EGL hook...");
-	if (!egl_hook_install())
-		spdlog::debug("EGL hook install failed (non-fatal)");
-	else
-		spdlog::debug("[hooks] EGL hook installed");
-
-	spdlog::debug("[hooks] hooks_init_early done");
+	spdlog::info("[hooks] early hooks installed (file={}, ssl={}, scheduler={}, egl={})", file_ok, ssl_ok, sched_ok,
+				 egl_ok);
 	return true;
 }
 
 bool hooks_init(const ModLoader *loader, const std::filesystem::path &dllDir, JeodeConfig *cfg) {
-	spdlog::debug("[hooks] hooks_init: configuring file hook...");
 	file_hook_configure(loader, dllDir);
 	g_modLoader = loader;
 	g_config = *cfg;
 	g_gameDir = dllDir;
 
-	spdlog::debug("[hooks] hooks_init: setting on_game_ready callback...");
 	file_hook_on_game_ready(on_game_ready);
 
-	spdlog::debug("[hooks] hooks_init: looking for luaopen_game...");
 	HMODULE hExe = GetModuleHandle(nullptr);
 	void *luaopen_addr = reinterpret_cast<void *>(GetProcAddress(hExe, "luaopen_game"));
 
 	if (!luaopen_addr) {
-		spdlog::error("'luaopen_game' export not found");
+		spdlog::error("[hooks] 'luaopen_game' export not found");
 		return false;
 	}
-	spdlog::debug("Found luaopen_game at {}", luaopen_addr);
+	spdlog::debug("[hooks] found luaopen_game at {}", luaopen_addr);
 
-	spdlog::debug("[hooks] creating luaopen_game hook...");
 	MH_STATUS s = MH_CreateHook(luaopen_addr, reinterpret_cast<void *>(&hooked_luaopen_game),
 								reinterpret_cast<void **>(&g_orig_luaopen_game));
 	if (s != MH_OK) {
-		spdlog::error("MH_CreateHook(luaopen_game) failed: {}", MH_StatusToString(s));
+		spdlog::error("[hooks] MH_CreateHook(luaopen_game) failed: {}", MH_StatusToString(s));
 		return false;
 	}
 
-	spdlog::debug("[hooks] enabling luaopen_game hook...");
 	s = MH_EnableHook(luaopen_addr);
 	if (s != MH_OK) {
-		spdlog::error("MH_EnableHook(luaopen_game) failed: {}", MH_StatusToString(s));
+		spdlog::error("[hooks] MH_EnableHook(luaopen_game) failed: {}", MH_StatusToString(s));
 		return false;
 	}
-	spdlog::debug("[hooks] luaopen_game hook active");
+	spdlog::info("[hooks] luaopen_game hook active");
 
-	spdlog::debug("[hooks] configuring EGL hook (overlays={}, key=0x{:02X})...", g_config.overlays_enabled,
-				  g_config.toggle_key);
 	egl_hook_configure(g_config.overlays_enabled, g_config.toggle_key);
+	spdlog::debug("[hooks] EGL configured (overlays={}, toggle=0x{:02X})", g_config.overlays_enabled,
+				  g_config.toggle_key);
 
-	spdlog::debug("[hooks] hooks_init complete");
+	spdlog::info("[hooks] hook setup complete");
 	return true;
 }
 

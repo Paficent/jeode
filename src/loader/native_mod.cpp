@@ -26,7 +26,7 @@ static std::mutex g_modules_mutex;
 static void JEODE_CALL native_log(const char *tag, const char *message) {
 	std::string t = tag ? tag : "native";
 	std::string m = message ? message : "";
-	spdlog::debug("[{}] {}", t, m);
+	spdlog::info("[{}] {}", t, m);
 	overlay_log("[" + t + "] " + m);
 }
 
@@ -133,7 +133,7 @@ static bool load_native_mod(const Mod &mod) {
 
 	int result = init_fn(&ctx->api);
 	if (result != 0) {
-		spdlog::error("[native] '{}': init returned {}", manifest.id, result);
+		spdlog::error("[native] '{}': init returned error code {}", manifest.id, result);
 		FreeLibrary(handle);
 		return false;
 	}
@@ -143,18 +143,15 @@ static bool load_native_mod(const Mod &mod) {
 		g_loaded_mods.push_back(std::move(ctx));
 	}
 
-	spdlog::debug("[native] '{}' loaded", manifest.id);
+	spdlog::info("[native] '{}' loaded successfully", manifest.id);
 	return true;
 }
 
 void native_mods_load(const std::vector<std::shared_ptr<Mod>> &mods, bool enabled) {
-	spdlog::debug("[native] native_mods_load: {} mod(s), enabled={}", mods.size(), enabled);
+	spdlog::debug("[native] processing {} mod(s) (native enabled={})", mods.size(), enabled);
 	for (const auto &mod : mods) {
 		const Manifest &manifest = mod->getManifest();
-		if (manifest.native_entry.empty()) {
-			spdlog::debug("[native] '{}': no native_entry, skipping", manifest.id);
-			continue;
-		}
+		if (manifest.native_entry.empty()) continue;
 
 		if (!enabled) {
 			spdlog::info("[native] '{}' skipped (native mods disabled)", manifest.id);
@@ -162,10 +159,8 @@ void native_mods_load(const std::vector<std::shared_ptr<Mod>> &mods, bool enable
 			continue;
 		}
 
-		spdlog::debug("[native] '{}': attempting to load native mod...", manifest.id);
 		if (!load_native_mod(*mod)) overlay_log("[error] [" + manifest.id + "] native mod failed to load");
 	}
-	spdlog::debug("[native] native_mods_load done");
 }
 
 void native_mods_unload() {

@@ -17,13 +17,10 @@ static std::string lowercase(const std::string &s) {
 }
 
 Mod::Mod(const fs::path &modPath) : path(modPath) {
-	spdlog::debug("[mod] constructing Mod for '{}'", modPath.string());
-	spdlog::debug("[mod] '{}': loading manifest...", modPath.filename().string());
+	spdlog::debug("[mod] loading '{}'", modPath.filename().string());
 	loadManifest();
-	spdlog::debug("[mod] '{}': manifest loaded (id='{}'), building overrides...", modPath.filename().string(),
-				  manifest.id);
 	buildOverrides();
-	spdlog::debug("[mod] '{}': construction complete", manifest.id);
+	spdlog::debug("[mod] '{}' ready (id='{}')", modPath.filename().string(), manifest.id);
 }
 
 const std::string &Mod::getId() const {
@@ -58,9 +55,6 @@ void Mod::loadManifest() {
 	fs::path manifestPath = path / "manifest.json";
 	bool rewrite = false;
 
-	spdlog::debug("[mod] '{}': manifest path='{}'", dirName, manifestPath.string());
-	spdlog::debug("[mod] '{}': manifest exists={}", dirName, fs::exists(manifestPath));
-
 	Manifest defaults;
 	defaults.id = dirName;
 
@@ -93,26 +87,25 @@ void Mod::loadManifest() {
 
 			manifest = schema::parse(j, dirName);
 		} catch (const json::exception &e) {
-			spdlog::debug("[mod] failed to parse manifest.json for '{}': {}", dirName, e.what());
+			spdlog::warn("[mod] failed to parse manifest.json for '{}': {}", dirName, e.what());
 			manifest = defaults;
 			rewrite = true;
 		}
 	} else {
+		spdlog::debug("[mod] '{}': no manifest.json, using defaults", dirName);
 		manifest = defaults;
 		rewrite = true;
 	}
 
-	spdlog::debug("[mod] '{}': sanitizing manifest...", dirName);
 	schema::sanitize(manifest);
-	spdlog::debug("[mod] '{}': sanitized (id='{}', entry='{}', auto_override={})", dirName, manifest.id, manifest.entry,
-				  manifest.assets.auto_override);
-	spdlog::debug("[mod] '{}': validating manifest...", dirName);
 	schema::validate(manifest, path);
 
+	spdlog::debug("[mod] '{}': id='{}', entry='{}', auto_override={}", dirName, manifest.id, manifest.entry,
+				  manifest.assets.auto_override);
+
 	if (rewrite) {
-		spdlog::debug("[mod] '{}': rewriting manifest.json...", dirName);
 		saveManifest();
-		spdlog::debug("[mod] '{}': manifest rewritten", dirName);
+		spdlog::debug("[mod] '{}': manifest.json rewritten with defaults", dirName);
 	}
 }
 
@@ -122,7 +115,7 @@ void Mod::saveManifest() {
 		std::ofstream file(manifestPath);
 		file << schema::format(manifest);
 	} catch (const std::exception &e) {
-		spdlog::debug("[mod] failed to write manifest.json for '{}': {}", manifest.id, e.what());
+		spdlog::warn("[mod] failed to write manifest.json for '{}': {}", manifest.id, e.what());
 	}
 }
 
@@ -130,11 +123,8 @@ void Mod::buildOverrides() {
 	resolvedOverrides.clear();
 	resolvedDatOverrides.clear();
 
-	spdlog::debug("[mod] '{}': buildOverrides auto_override={}", manifest.id, manifest.assets.auto_override);
-
 	if (manifest.assets.auto_override) {
 		fs::path dataDir = path / "data";
-		spdlog::debug("[mod] '{}': checking data dir '{}'", manifest.id, dataDir.string());
 		if (fs::exists(dataDir) && fs::is_directory(dataDir)) {
 			int count = 0;
 			for (auto &entry : fs::recursive_directory_iterator(dataDir)) {
@@ -143,13 +133,10 @@ void Mod::buildOverrides() {
 				resolvedOverrides[lowercase(rel.generic_string())] = entry.path().generic_string();
 				count++;
 			}
-			spdlog::debug("[mod] '{}': found {} data file(s) for auto_override", manifest.id, count);
-		} else {
-			spdlog::debug("[mod] '{}': data dir does not exist", manifest.id);
+			spdlog::debug("[mod] '{}': auto-discovered {} data file(s)", manifest.id, count);
 		}
 
 		fs::path datDir = path / "dat";
-		spdlog::debug("[mod] '{}': checking dat dir '{}'", manifest.id, datDir.string());
 		if (fs::exists(datDir) && fs::is_directory(datDir)) {
 			int count = 0;
 			for (auto &entry : fs::recursive_directory_iterator(datDir)) {
@@ -158,35 +145,29 @@ void Mod::buildOverrides() {
 				resolvedDatOverrides[lowercase(rel.generic_string())] = entry.path().generic_string();
 				count++;
 			}
-			spdlog::debug("[mod] '{}': found {} dat file(s) for auto_override", manifest.id, count);
-		} else {
-			spdlog::debug("[mod] '{}': dat dir does not exist", manifest.id);
+			spdlog::debug("[mod] '{}': auto-discovered {} dat file(s)", manifest.id, count);
 		}
 	}
 
-	spdlog::debug("[mod] '{}': processing {} manual overrides...", manifest.id, manifest.assets.overrides.size());
 	for (auto &[gamePath, modFile] : manifest.assets.overrides) {
 		fs::path src = path / modFile;
 		if (fs::exists(src)) {
 			resolvedOverrides[lowercase(gamePath)] = src.generic_string();
 		} else {
-			spdlog::debug("[mod] '{}': manual override source '{}' not found", manifest.id, src.string());
+			spdlog::warn("[mod] '{}': manual override source '{}' not found", manifest.id, src.string());
 		}
 	}
 
-	spdlog::debug("[mod] '{}': processing {} manual dat overrides...", manifest.id,
-				  manifest.assets.dat_overrides.size());
 	for (auto &[datPath, modFile] : manifest.assets.dat_overrides) {
 		fs::path src = path / modFile;
 		if (fs::exists(src)) {
 			resolvedDatOverrides[lowercase(datPath)] = src.generic_string();
 		} else {
-			spdlog::debug("[mod] '{}': manual dat override source '{}' not found", manifest.id, src.string());
+			spdlog::warn("[mod] '{}': manual dat override source '{}' not found", manifest.id, src.string());
 		}
 	}
 
-	size_t total = resolvedOverrides.size() + resolvedDatOverrides.size();
-	spdlog::debug("[mod] '{}': buildOverrides complete ({} asset, {} dat)", manifest.id, resolvedOverrides.size(),
+	spdlog::debug("[mod] '{}': {} asset + {} dat override(s)", manifest.id, resolvedOverrides.size(),
 				  resolvedDatOverrides.size());
 }
 

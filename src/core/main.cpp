@@ -24,22 +24,22 @@ static LONG WINAPI jeode_crash_handler(EXCEPTION_POINTERS *ep) {
 	if (ep && ep->ExceptionRecord) {
 		DWORD code = ep->ExceptionRecord->ExceptionCode;
 		void *addr = ep->ExceptionRecord->ExceptionAddress;
-		spdlog::critical("[CRASH] exception code=0x{:08X} at address={}", code, addr);
+		spdlog::error("[exception] code=0x{:08X} at address={}", code, addr);
 
 		if (ep->ContextRecord) {
 			auto *ctx = ep->ContextRecord;
-			spdlog::critical("[CRASH] EAX=0x{:08X} EBX=0x{:08X} ECX=0x{:08X} EDX=0x{:08X}", ctx->Eax, ctx->Ebx,
-							 ctx->Ecx, ctx->Edx);
-			spdlog::critical("[CRASH] ESI=0x{:08X} EDI=0x{:08X} EBP=0x{:08X} ESP=0x{:08X}", ctx->Esi, ctx->Edi,
-							 ctx->Ebp, ctx->Esp);
-			spdlog::critical("[CRASH] EIP=0x{:08X}", ctx->Eip);
+			spdlog::debug("[exception] EAX=0x{:08X} EBX=0x{:08X} ECX=0x{:08X} EDX=0x{:08X}", ctx->Eax, ctx->Ebx,
+						  ctx->Ecx, ctx->Edx);
+			spdlog::debug("[exception] ESI=0x{:08X} EDI=0x{:08X} EBP=0x{:08X} ESP=0x{:08X}", ctx->Esi, ctx->Edi,
+						  ctx->Ebp, ctx->Esp);
+			spdlog::debug("[exception] EIP=0x{:08X}", ctx->Eip);
 		}
 
 		if (ep->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION &&
 			ep->ExceptionRecord->NumberParameters >= 2) {
 			const char *op = ep->ExceptionRecord->ExceptionInformation[0] == 0 ? "reading" : "writing";
-			spdlog::critical("[CRASH] access violation {} address 0x{:08X}", op,
-							 (unsigned)ep->ExceptionRecord->ExceptionInformation[1]);
+			spdlog::error("[exception] access violation {} address 0x{:08X}", op,
+						  (unsigned)ep->ExceptionRecord->ExceptionInformation[1]);
 		}
 
 		spdlog::default_logger()->flush();
@@ -50,55 +50,37 @@ static LONG WINAPI jeode_crash_handler(EXCEPTION_POINTERS *ep) {
 static DWORD WINAPI init_thread(LPVOID) {
 	log_init(g_config.debug);
 	AddVectoredExceptionHandler(1, jeode_crash_handler);
-	spdlog::debug("[main] init_thread started (crash handler registered)");
-	spdlog::debug("[main] gameDir='{}'", g_gameDir.string());
+	spdlog::info("[main] jeode initializing (gameDir='{}')", g_gameDir.string());
 
-	spdlog::debug("[main] initializing overlay...");
 	overlay_init(g_gameDir / "jeode");
-	spdlog::debug("[main] overlay initialized");
 
-	spdlog::debug("[main] installing early hooks...");
 	if (!hooks_init_early()) {
-		spdlog::error("Early hook setup failed");
+		spdlog::error("[main] early hook setup failed, aborting");
 		return 1;
 	}
-	spdlog::debug("[main] early hooks installed");
-
-	spdlog::info("jeode initializing...");
 
 	fs::path modsDir = g_gameDir / "mods";
 	spdlog::debug("[main] mods directory: '{}' (exists={})", modsDir.string(), fs::exists(modsDir));
 
-	spdlog::debug("[main] creating ModLoader...");
 	g_modLoader = std::make_unique<ModLoader>(modsDir);
-
-	spdlog::debug("[main] calling loadMods...");
 	g_modLoader->loadMods();
-	spdlog::debug("[main] loadMods complete, {} mod(s) loaded", g_modLoader->getAllMods().size());
-
-	spdlog::debug("[main] resolving dependencies...");
 	g_modLoader->resolveDependencies();
-	spdlog::debug("[main] dependencies resolved");
-
-	spdlog::debug("[main] sorting mods...");
 	g_modLoader->sortMods();
-	spdlog::debug("[main] mods sorted, {} total override(s), {} dat override(s)", g_modLoader->getAllOverrides().size(),
-				  g_modLoader->getAllDatOverrides().size());
 
-	spdlog::debug("[main] resolving lua functions...");
+	spdlog::info("[main] {} mod(s) loaded, {} asset override(s), {} dat override(s)", g_modLoader->getAllMods().size(),
+				 g_modLoader->getAllOverrides().size(), g_modLoader->getAllDatOverrides().size());
+
 	if (!game_lua_resolve()) {
-		spdlog::error("Failed to resolve lua functions");
+		spdlog::error("[main] failed to resolve lua functions, aborting");
 		return 1;
 	}
-	spdlog::debug("[main] lua functions resolved");
 
-	spdlog::debug("[main] calling hooks_init...");
 	if (!hooks_init(g_modLoader.get(), g_gameDir, &g_config)) {
-		spdlog::error("Hook setup failed");
+		spdlog::error("[main] hook setup failed, aborting");
 		return 1;
 	}
-	spdlog::debug("[main] hooks_init complete, init_thread done");
 
+	spdlog::info("[main] initialization complete");
 	return 0;
 }
 
@@ -120,7 +102,7 @@ extern "C" BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
 		DisableThreadLibraryCalls(hModule);
 	} else if (reason == DLL_PROCESS_DETACH) {
 		hooks_shutdown();
-		spdlog::debug("libjeode unloading");
+		spdlog::info("[main] libjeode unloading");
 		log_shutdown();
 	}
 

@@ -11,6 +11,8 @@
 #include <mutex>
 #include <vector>
 
+// TODO: Implement new memory.h pattern scanning
+
 //   55              PUSH EBP
 //   8B EC           MOV EBP, ESP
 //   83 EC ??        SUB ESP, <frame_size>
@@ -73,10 +75,8 @@ static int __fastcall hooked_scheduler_tick(void *thisPtr, void *edx_unused) {
 		}
 	}
 	for (size_t i = 0; i < batch.size(); i++) {
-		spdlog::debug("[sched] executing work item {}/{}", i + 1, batch.size());
 		try {
 			batch[i]();
-			spdlog::debug("[sched] work item {}/{} completed", i + 1, batch.size());
 		} catch (const std::exception &e) {
 			spdlog::error("[sched] work item {}/{} threw: {}", i + 1, batch.size(), e.what());
 		} catch (...) {
@@ -110,30 +110,30 @@ bool scheduler_hook_install() {
 	g_scheduler_tick_addr = reinterpret_cast<void *>(addr);
 
 	if (IsBadReadPtr(g_scheduler_tick_addr, 1)) {
-		spdlog::error("[sched] address {} not readable", g_scheduler_tick_addr);
+		spdlog::error("[sched] target address {} not readable", g_scheduler_tick_addr);
 		return false;
 	}
 
 	auto *prologue = reinterpret_cast<uint8_t *>(g_scheduler_tick_addr);
 	if (prologue[0] != 0x55) {
-		spdlog::error("[sched] bad prologue {:#04x} at {}", prologue[0], g_scheduler_tick_addr);
+		spdlog::error("[sched] unexpected prologue {:#04x} at {} (expected 0x55)", prologue[0], g_scheduler_tick_addr);
 		return false;
 	}
 
 	MH_STATUS s = MH_CreateHook(g_scheduler_tick_addr, reinterpret_cast<void *>(&hooked_scheduler_tick),
 								reinterpret_cast<void **>(&g_orig_scheduler_tick));
 	if (s != MH_OK) {
-		spdlog::error("[sched] MH_CreateHook: {}", MH_StatusToString(s));
+		spdlog::error("[sched] MH_CreateHook failed: {}", MH_StatusToString(s));
 		return false;
 	}
 
 	s = MH_EnableHook(g_scheduler_tick_addr);
 	if (s != MH_OK) {
-		spdlog::error("[sched] MH_EnableHook: {}", MH_StatusToString(s));
+		spdlog::error("[sched] MH_EnableHook failed: {}", MH_StatusToString(s));
 		return false;
 	}
 
-	spdlog::debug("[sched] hook installed at {}", g_scheduler_tick_addr);
+	spdlog::info("[sched] hook installed at {}", g_scheduler_tick_addr);
 	return true;
 }
 
