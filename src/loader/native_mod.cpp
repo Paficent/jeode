@@ -1,5 +1,4 @@
 #include "native_mod.h"
-#include "../core/overlay.h"
 #include "../lua/game_lua.h"
 #include "../lua/thread.h"
 
@@ -27,9 +26,9 @@ static void JEODE_CALL native_log(const char *tag, const char *message) {
 	std::string t = tag ? tag : "native";
 	std::string m = message ? message : "";
 	spdlog::info("[{}] {}", t, m);
-	overlay_log("[" + t + "] " + m);
 }
 
+// TODO: this isnt sandboxed
 static void JEODE_CALL native_queue_lua(const char *code, const char *chunk_name) {
 	if (!code) return;
 	std::string src = code;
@@ -155,11 +154,10 @@ void native_mods_load(const std::vector<std::shared_ptr<Mod>> &mods, bool enable
 
 		if (!enabled) {
 			spdlog::info("[native] '{}' skipped (native mods disabled)", manifest.id);
-			overlay_log("[warn] [" + manifest.id + "] native mod skipped (disabled)");
 			continue;
 		}
 
-		if (!load_native_mod(*mod)) overlay_log("[error] [" + manifest.id + "] native mod failed to load");
+		if (!load_native_mod(*mod)) spdlog::error("[native] [" + manifest.id + "] failed to load");
 	}
 }
 

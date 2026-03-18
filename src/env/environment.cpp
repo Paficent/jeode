@@ -147,21 +147,20 @@ static int env_loadstring(lua_State *L) {
 	return 1;
 }
 
-// __env_log(prefix, msg) - routes to spdlog + overlay
+// __env_log(prefix, msg)
 static int env_log(lua_State *L) {
 	const char *prefix = lua_tostring(L, 1);
 	const char *msg = lua_tostring(L, 2);
 	std::string p = prefix ? prefix : "mod";
 	std::string m = msg ? msg : "";
 	spdlog::info("[{}] {}", p, m);
-	overlay_log("[" + p + "] " + m);
 	return 0;
 }
 
-// __env_overlay_log(msg) - overlay only, for executor output
-static int env_overlay_log(lua_State *L) {
+// __env_executor_log(msg)
+static int env_executor_log(lua_State *L) {
 	const char *msg = lua_tostring(L, 1);
-	overlay_log(msg ? msg : "");
+	overlay_executor_log(msg ? msg : "");
 	return 0;
 }
 
@@ -259,7 +258,7 @@ if not ok then error(tostring(msg)) end
 
 static const char EXEC_BOOTSTRAP_PRE[] = R"LUA(
 local _loadstr = __env_loadstring
-local _olog    = __env_overlay_log
+local _elog    = __env_executor_log
 
 local code = __exec_code
 __exec_code = nil
@@ -269,7 +268,7 @@ if not chunk then
     chunk, err = _loadstr(code, '=executor')
 end
 if not chunk then
-    _olog('[error] ' .. tostring(err))
+    _elog('[error] ' .. tostring(err))
     return
 end
 
@@ -280,7 +279,7 @@ env.print = function(...)
     for i = 1, select('#', ...) do
         parts[#parts + 1] = tostring(select(i, ...))
     end
-    _olog(table.concat(parts, '\t'))
+    _elog(table.concat(parts, '\t'))
 end
 
 do
@@ -302,7 +301,7 @@ setfenv(chunk, env)
 local co = coroutine.create(chunk)
 local results = {coroutine.resume(co)}
 if not results[1] then
-    _olog('[error] ' .. tostring(results[2]))
+    _elog('[error] ' .. tostring(results[2]))
     return
 end
 if coroutine.status(co) == 'suspended' then return end
@@ -312,7 +311,7 @@ if #results > 0 then
     for i = 1, #results do
         parts[#parts + 1] = tostring(results[i])
     end
-    _olog(table.concat(parts, '\t'))
+    _elog(table.concat(parts, '\t'))
 end
 )LUA";
 
@@ -357,7 +356,7 @@ void Environment::register_apis(lua_State *L, const std::string &gameDirStr) {
 	set_global_cfunc(L, "__env_loadchunk", env_loadchunk);
 	set_global_cfunc(L, "__env_loadstring", env_loadstring);
 	set_global_cfunc(L, "__env_log", env_log);
-	set_global_cfunc(L, "__env_overlay_log", env_overlay_log);
+	set_global_cfunc(L, "__env_executor_log", env_executor_log);
 
 	console_api_register(L);
 	file_api_init(L, gameDirStr.c_str());
@@ -406,7 +405,7 @@ void Environment::load_mods(lua_State *L, const ModLoader *loader, const std::st
 			if (choice != IDYES) {
 				spdlog::info("[env] '{}' skipped by user (version mismatch: mod={}, game={})", manifest.id,
 							 manifest.game_version, activeVersion);
-				overlay_log("[warn] [" + manifest.id + "] skipped (version mismatch)");
+				overlay_executor_log("[warn] [" + manifest.id + "] skipped (version mismatch)");
 				continue;
 			}
 		}
@@ -439,7 +438,7 @@ void Environment::load_mods(lua_State *L, const ModLoader *loader, const std::st
 			const char *err = lua_tostring(L, -1);
 			std::string errmsg = err ? err : "(unknown)";
 			spdlog::error("[env] '{}': bootstrap load error: {}", manifest.id, errmsg);
-			overlay_log("[error] [" + manifest.id + "] " + errmsg);
+			overlay_executor_log("[error] [" + manifest.id + "] " + errmsg);
 			game_lua_settop(L, base);
 			continue;
 		}
@@ -449,7 +448,7 @@ void Environment::load_mods(lua_State *L, const ModLoader *loader, const std::st
 			const char *err = lua_tostring(L, -1);
 			std::string errmsg = err ? err : "(unknown error)";
 			spdlog::error("[env] '{}': runtime error: {}", manifest.id, errmsg);
-			overlay_log("[error] [" + manifest.id + "] " + errmsg);
+			overlay_executor_log("[error] [" + manifest.id + "] " + errmsg);
 			game_lua_settop(L, base);
 			continue;
 		}
@@ -497,7 +496,7 @@ void Environment::execute(const std::string &code) {
 
 	lua_thread_queue([this, code, sandboxCode](lua_State *L) {
 		if (!L) {
-			overlay_log("[error] lua state not available");
+			overlay_executor_log("[error] lua state not available");
 			return;
 		}
 
@@ -518,7 +517,7 @@ void Environment::execute(const std::string &code) {
 		int s = game_luaL_loadbuffer(L, bootstrap.c_str(), static_cast<int>(bootstrap.size()), "=executor");
 		if (s != 0) {
 			const char *err = lua_tostring(L, -1);
-			overlay_log(std::string("[error] ") + (err ? err : "executor load error"));
+			overlay_executor_log(std::string("[error] ") + (err ? err : "executor load error"));
 			game_lua_settop(L, base);
 			clear_mod_context();
 			file_api_clear_mod_root();
@@ -528,7 +527,7 @@ void Environment::execute(const std::string &code) {
 		s = game_lua_pcall(L, 0, 0, 0);
 		if (s != 0) {
 			const char *err = lua_tostring(L, -1);
-			overlay_log(std::string("[error] ") + (err ? err : "executor runtime error"));
+			overlay_executor_log(std::string("[error] ") + (err ? err : "executor runtime error"));
 		}
 
 		game_lua_settop(L, base);

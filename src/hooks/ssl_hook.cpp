@@ -15,7 +15,7 @@ static SSL_write_t g_orig_SSL_write = nullptr;
 static void *g_pSSL_read = nullptr;
 static void *g_pSSL_write = nullptr;
 
-// TODO: Actually implement this so Native mods can read packets or seperate this into its own mod]
+// TODO: Actually implement this so Native mods can read packets or seperate this into its own mod
 // so I don't get sued for "allowing modders to modify encrypted network traffic"
 static std::string hex_dump(const void *data, int len) {
 	if (len <= 0) return {};
