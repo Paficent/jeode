@@ -1,0 +1,22 @@
+BasedOnStyle: LLVM
+
+UseTab: Always
+IndentWidth: 4
+TabWidth: 4
+
+ColumnLimit: 120
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: true
+
+BinPackArguments: true
+BinPackParameters: true
+
+PenaltyBreakBeforeFirstCallParameter: 1000
+PenaltyBreakString: 1000
+PenaltyBreakAssignment: 50
+
+SortIncludes: true
+SpaceBeforeParens: ControlStatements
+
+BreakBeforeBraces: Attach

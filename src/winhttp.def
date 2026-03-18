@@ -1,0 +1,12 @@
+LIBRARY winhttp
+EXPORTS
+    WinHttpOpen                  = proxy_WinHttpOpen
+    WinHttpConnect               = proxy_WinHttpConnect
+    WinHttpSendRequest           = proxy_WinHttpSendRequest
+    WinHttpCloseHandle           = proxy_WinHttpCloseHandle
+    WinHttpOpenRequest           = proxy_WinHttpOpenRequest
+    WinHttpReadData              = proxy_WinHttpReadData
+    WinHttpQueryHeaders          = proxy_WinHttpQueryHeaders
+    WinHttpAddRequestHeaders     = proxy_WinHttpAddRequestHeaders
+    WinHttpQueryDataAvailable    = proxy_WinHttpQueryDataAvailable
+    WinHttpReceiveResponse       = proxy_WinHttpReceiveResponse

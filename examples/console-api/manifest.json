@@ -1,0 +1,17 @@
+{
+  "id": "console-api-example",
+  "name": "Console Api Example",
+  "author": "Paficent",
+  "version": "1.0.0",
+  "game_version": "5.3.0",
+  "error_on_game_update": false,
+  "entry": "init.lua",
+  "load_priority": 0,
+  "dependencies": [],
+  "assets": {
+    "auto_override": false,
+    "overrides": {},
+    "dat_overrides": {}
+  },
+  "schema_version": 1
+}

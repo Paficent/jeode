@@ -1,0 +1,6 @@
+LIBRARY libjeode
+EXPORTS
+    jeode_init
+    game_luaL_loadbuffer
+    game_lua_pcall
+    game_lua_settop

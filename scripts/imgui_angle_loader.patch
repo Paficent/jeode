@@ -1,0 +1,38 @@
+--- a/include/imgui/backends/imgui_impl_opengl3_loader.h
++++ b/include/imgui/backends/imgui_impl_opengl3_loader.h
+@@ -647,23 +647,28 @@
+ #include <windows.h>
+ 
+ static HMODULE libgl = NULL;
+-typedef PROC(__stdcall* GL3WglGetProcAddr)(LPCSTR);
+-static GL3WglGetProcAddr wgl_get_proc_address;
++static HMODULE libegl = NULL;
++typedef void *(*EglGetProcAddr)(const char *);
++static EglGetProcAddr egl_get_proc_address;
+ 
+ static int open_libgl(void)
+ {
+-    libgl = LoadLibraryA("opengl32.dll");
++    libgl = GetModuleHandleA("libGLESv2.dll");
++    if (!libgl) libgl = LoadLibraryA("libGLESv2.dll");
+     if (!libgl)
+         return GL3W_ERROR_LIBRARY_OPEN;
+-    wgl_get_proc_address = (GL3WglGetProcAddr)GetProcAddress(libgl, "wglGetProcAddress");
++    libegl = GetModuleHandleA("libEGL.dll");
++    if (libegl)
++        egl_get_proc_address = (EglGetProcAddr)GetProcAddress(libegl, "eglGetProcAddress");
+     return GL3W_OK;
+ }
+ 
+-static void close_libgl(void) { FreeLibrary(libgl); libgl = NULL; }
++static void close_libgl(void) { libgl = NULL; libegl = NULL; }
+ static GL3WglProc get_proc(const char *proc)
+ {
+-    GL3WglProc res;
+-    res = (GL3WglProc)wgl_get_proc_address(proc);
++    GL3WglProc res = NULL;
++    if (egl_get_proc_address)
++        res = (GL3WglProc)egl_get_proc_address(proc);
+     if (!res)
+         res = (GL3WglProc)GetProcAddress(libgl, proc);
+     return res;
