@@ -1,5 +1,7 @@
 # Jeode
 
+[![GitHub](https://img.shields.io/badge/GitHub-Source-181717?logo=github)](https://github.com/Paficent/jeode)
+[![Codeberg](https://img.shields.io/badge/Codeberg-Mirror-2185D0?logo=codeberg)](https://codeberg.org/YourUsername/jeode)
 [![Discord](https://img.shields.io/discord/1477174015926997155?label=Discord&logo=discord&color=5865F2)](https://discord.gg/FSHq6DaRnX)
 [![License](https://img.shields.io/github/license/Paficent/jeode)](https://github.com/Paficent/jeode/blob/main/LICENSE)
 
