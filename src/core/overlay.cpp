@@ -63,7 +63,7 @@ struct LogBuffer {
 
 static fs::path s_jeode_dir;
 static LogBuffer s_executor_log;
-static LogBuffer s_debug_log;
+static LogBuffer s_log;
 
 static TextEditor s_editor;
 static bool s_editor_initialized = false;
@@ -121,11 +121,21 @@ static void draw_executor_tab() {
 	ImGui::EndChild();
 }
 
-static void draw_debug_tab() {
-	if (ImGui::Button("Clear")) s_debug_log.clear();
+static void draw_log_tab() {
+	if (ImGui::Button("Copy")) {
+		std::lock_guard<std::mutex> lock(s_log.mutex);
+		std::string all;
+		for (const auto &line : s_log.lines) {
+			all += line;
+			all += '\n';
+		}
+		ImGui::SetClipboardText(all.c_str());
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Clear")) s_log.clear();
 
 	if (ImGui::BeginChild("debug_output", ImVec2(0, 0), ImGuiChildFlags_Borders)) {
-		s_debug_log.draw();
+		s_log.draw();
 	}
 	ImGui::EndChild();
 }
@@ -212,7 +222,7 @@ static void draw_config_tab() {
 		egl_hook_set_toggle_key(s_config.live.toggle_key);
 		get_environment().sandbox().set_allow_unsafe(s_config.live.allow_unsafe_functions);
 		s_config.save();
-		overlay_debug_log("[info] config saved");
+		overlay_log("[info] config saved");
 	}
 
 	ImGui::SameLine();
@@ -242,12 +252,12 @@ void overlay_init(const fs::path &jeodeDir) {
 	s_jeode_dir = jeodeDir;
 }
 
-void overlay_log(const std::string &line) {
+void overlay_executor_log(const std::string &line) {
 	s_executor_log.append(line);
 }
 
-void overlay_debug_log(const std::string &line) {
-	s_debug_log.append(line);
+void overlay_log(const std::string &line) {
+	s_log.append(line);
 }
 
 void overlay_draw() {
@@ -262,8 +272,8 @@ void overlay_draw() {
 			draw_executor_tab();
 			ImGui::EndTabItem();
 		}
-		if (ImGui::BeginTabItem("Debug Console")) {
-			draw_debug_tab();
+		if (ImGui::BeginTabItem("Logs")) {
+			draw_log_tab();
 			ImGui::EndTabItem();
 		}
 		if (ImGui::BeginTabItem("Config")) {

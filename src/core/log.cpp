@@ -14,7 +14,7 @@ template <typename Mutex> class overlay_sink : public spdlog::sinks::base_sink<M
 		spdlog::sinks::base_sink<Mutex>::formatter_->format(msg, buf);
 		std::string formatted(buf.data(), buf.size());
 		while (!formatted.empty() && (formatted.back() == '\n' || formatted.back() == '\r')) formatted.pop_back();
-		overlay_debug_log(formatted);
+		overlay_log(formatted);
 	}
 
 	void flush_() override {}
@@ -29,11 +29,9 @@ void log_init(bool debug) {
 	file_sink->set_pattern("[%H:%M:%S.%e] [%l] %v");
 	sinks.push_back(file_sink);
 
-	if (debug) {
-		auto imgui_sink = std::make_shared<overlay_sink_mt>();
-		imgui_sink->set_pattern("[%l] [%H:%M:%S] %v");
-		sinks.push_back(imgui_sink);
-	}
+	auto imgui_sink = std::make_shared<overlay_sink_mt>();
+	imgui_sink->set_pattern("[%l] [%H:%M:%S] %v");
+	sinks.push_back(imgui_sink);
 
 	auto logger = std::make_shared<spdlog::logger>("jeode", sinks.begin(), sinks.end());
 	logger->set_level(debug ? spdlog::level::debug : spdlog::level::info);
