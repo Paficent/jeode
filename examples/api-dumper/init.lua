@@ -145,7 +145,7 @@ end
 
 
 local function dump(name, tbl)
-    local path = OUT .. "/" .. name .. ".lua"
+    local path = mod.getRoot() .. "/" .. name .. ".lua"
     local ok, result = pcall(TableToString, tbl)
     if ok then
         result = "return " .. result .. "\n"
