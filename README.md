@@ -53,7 +53,7 @@ See the [examples](examples/) folder for reference.
 
 ## Building Locally
 
-Requires `i686-w64-mingw32` for compilation and standard build tools (`make`, `bash`, `etc`).
+Requires `i686-w64-mingw32` for compilation and standard build tools (`make`, `bash`, etc.)
 
 Jeode can be built for development or for production:
 
