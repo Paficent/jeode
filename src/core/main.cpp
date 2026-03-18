@@ -24,7 +24,7 @@ static LONG WINAPI jeode_crash_handler(EXCEPTION_POINTERS *ep) {
 	if (ep && ep->ExceptionRecord) {
 		DWORD code = ep->ExceptionRecord->ExceptionCode;
 		void *addr = ep->ExceptionRecord->ExceptionAddress;
-		spdlog::error("[exception] code=0x{:08X} at address={}", code, addr);
+		spdlog::debug("[exception] code=0x{:08X} at address={}", code, addr);
 
 		if (ep->ContextRecord) {
 			auto *ctx = ep->ContextRecord;
