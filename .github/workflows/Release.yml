@@ -17,20 +17,8 @@ jobs:
       - name: Install toolchains
         run: sudo apt-get update && sudo apt-get install -y mingw-w64 nsis
 
-      - name: Fetch dependencies
-        run: bash scripts/dependencies.sh
-
-      - name: Build
-        run: make JEODE_VERSION=${{ github.ref_name }}
-
-      - name: Build installer
-        run: |
-          makensis \
-            -DJEODE_VERSION=${{ github.ref_name }} \
-            -DBUILD_DIR=build \
-            -NOCD \
-            scripts/jeode.nsi
-          mv jeode-installer.exe build/
+      - name: Build for production
+        run: bash scripts/build.sh ${{ github.ref_name }}
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
