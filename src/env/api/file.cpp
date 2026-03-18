@@ -6,6 +6,8 @@ extern "C" {
 #include <lua.h>
 }
 
+// TODO: This isn't even remotely thread safe
+
 #include <spdlog/spdlog.h>
 
 #include <algorithm>

@@ -5,7 +5,7 @@
 [![Discord](https://img.shields.io/discord/1477174015926997155?label=Discord&logo=discord&color=5865F2)](https://discord.gg/FSHq6DaRnX)
 [![License](https://img.shields.io/github/license/Paficent/jeode)](https://github.com/Paficent/jeode/blob/main/LICENSE)
 
-Jeode (Jeode: Execution Oriented Development Environment) is a mod loader and framework for the PC version of [My Singing Monsters](https://store.steampowered.com/app/1419170/My_Singing_Monsters/), designed to make loading mods simple and development more powerful.
+Jeode is a mod loader and framework for the PC version of [My Singing Monsters](https://store.steampowered.com/app/1419170/My_Singing_Monsters/), designed to make loading mods simple and development more powerful.
 
 ## Installation
 
