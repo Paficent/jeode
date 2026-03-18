@@ -30,8 +30,8 @@ void mod_api_register(lua_State *L) {
 // This is a janky solution
 static const char API_BUILD_LUA[] = R"LUA(
 mod = {
-    getModRoot = __mod_getModRoot,
-    getModId   = __mod_getModId,
+    getModRoot = __mod_getRoot,
+    getModId   = __mod_getId,
 }
 __mod_getRoot = nil
 __mod_getId   = nil
