@@ -186,7 +186,6 @@ static std::string query_game_version(lua_State *L) {
 	return result;
 }
 
-// TODO: rewrite all of this once I have more luac functions
 static const char BOOTSTRAP_PRE[] = R"LUA(
 local _loadchunk  = __env_loadchunk
 local _loadstr    = __env_loadstring
@@ -250,9 +249,7 @@ end
 local chunk, err = _loadchunk(modRoot, entry)
 if not chunk then error("failed to load entry '" .. entry .. "': " .. tostring(err)) end
 setfenv(chunk, env)
-local co = coroutine.create(chunk)
-local ok, msg = coroutine.resume(co)
-if not ok then error(tostring(msg)) end
+return chunk
 )LUA";
 
 static const char EXEC_BOOTSTRAP_PRE[] = R"LUA(
@@ -296,22 +293,7 @@ end
 
 static const char EXEC_BOOTSTRAP_POST[] = R"LUA(
 setfenv(chunk, env)
-
-local co = coroutine.create(chunk)
-local results = {coroutine.resume(co)}
-if not results[1] then
-    _elog('[error] ' .. tostring(results[2]))
-    return
-end
-if coroutine.status(co) == 'suspended' then return end
-table.remove(results, 1)
-if #results > 0 then
-    local parts = {}
-    for i = 1, #results do
-        parts[#parts + 1] = tostring(results[i])
-    end
-    _elog(table.concat(parts, '\t'))
-end
+return chunk
 )LUA";
 
 static void set_global_cfunc(lua_State *L, const char *name, lua_CFunction fn) {
@@ -438,8 +420,28 @@ void Environment::load_mods(lua_State *L, const ModLoader *loader, const std::st
 			continue;
 		}
 
-		s = game_lua_pcall(L, 0, 0, 0);
+		s = game_lua_pcall(L, 0, 1, 0);
 		if (s != 0) {
+			const char *err = lua_tostring(L, -1);
+			std::string errmsg = err ? err : "(unknown error)";
+			spdlog::error("[env] '{}': bootstrap error: {}", manifest.id, errmsg);
+			overlay_executor_log("[error] [" + manifest.id + "] " + errmsg);
+			game_lua_settop(L, base);
+			continue;
+		}
+
+		if (!lua_isfunction(L, -1)) {
+			spdlog::error("[env] '{}': bootstrap did not return a function", manifest.id);
+			game_lua_settop(L, base);
+			continue;
+		}
+
+		lua_State *co = (lua_State *)game_lua_newthread(L);
+		lua_pushvalue(L, -2);
+		lua_xmove(L, co, 1);
+
+		int r = game_lua_resume(L, co, 0);
+		if (r < 0) {
 			const char *err = lua_tostring(L, -1);
 			std::string errmsg = err ? err : "(unknown error)";
 			spdlog::error("[env] '{}': runtime error: {}", manifest.id, errmsg);
@@ -486,6 +488,23 @@ void Environment::init(lua_State *L, const ModLoader *loader, const fs::path &ga
 	spdlog::info("[env] environment initialization complete");
 }
 
+static std::string stack_value_to_string(lua_State *L, int idx) {
+	int tp = lua_type(L, idx);
+	switch (tp) {
+	case LUA_TSTRING:
+	case LUA_TNUMBER: {
+		const char *s = lua_tostring(L, idx);
+		return s ? s : "";
+	}
+	case LUA_TBOOLEAN:
+		return lua_toboolean(L, idx) ? "true" : "false";
+	case LUA_TNIL:
+		return "nil";
+	default:
+		return lua_typename(L, tp);
+	}
+}
+
 void Environment::execute(const std::string &code) {
 	std::string sandboxCode = m_sandbox.generate_lua("env");
 
@@ -519,10 +538,45 @@ void Environment::execute(const std::string &code) {
 			return;
 		}
 
-		s = game_lua_pcall(L, 0, 0, 0);
+		s = game_lua_pcall(L, 0, 1, 0);
 		if (s != 0) {
 			const char *err = lua_tostring(L, -1);
 			overlay_executor_log(std::string("[error] ") + (err ? err : "executor runtime error"));
+			game_lua_settop(L, base);
+			clear_mod_context();
+			file_api_clear_mod_root();
+			return;
+		}
+
+		if (!lua_isfunction(L, -1)) {
+			game_lua_settop(L, base);
+			clear_mod_context();
+			file_api_clear_mod_root();
+			return;
+		}
+
+		lua_State *co = (lua_State *)game_lua_newthread(L);
+		lua_pushvalue(L, -2);
+		lua_xmove(L, co, 1);
+
+		int nresults = game_lua_resume(L, co, 0);
+		if (nresults < 0) {
+			const char *err = lua_tostring(L, -1);
+			overlay_executor_log(std::string("[error] ") + (err ? err : "executor runtime error"));
+			game_lua_settop(L, base);
+			clear_mod_context();
+			file_api_clear_mod_root();
+			return;
+		}
+
+		if (lua_status(co) != LUA_YIELD && nresults > 0) {
+			int rbase = lua_gettop(L) - nresults + 1;
+			std::string parts;
+			for (int i = 0; i < nresults; i++) {
+				if (i > 0) parts += "\t";
+				parts += stack_value_to_string(L, rbase + i);
+			}
+			overlay_executor_log(parts);
 		}
 
 		game_lua_settop(L, base);

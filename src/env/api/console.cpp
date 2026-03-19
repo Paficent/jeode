@@ -4,13 +4,13 @@
 #include "../api.h"
 
 extern "C" {
+#include <lauxlib.h>
 #include <lua.h>
 }
 
 #include <spdlog/spdlog.h>
 
 #include <atomic>
-#include <cstring>
 #include <deque>
 #include <functional>
 #include <mutex>
@@ -165,6 +165,9 @@ static int l_console_clear(lua_State *) {
 		FillConsoleOutputCharacterA(s_console_out, ' ', cells, origin, &written);
 		FillConsoleOutputAttribute(s_console_out, info.wAttributes, cells, origin, &written);
 		SetConsoleCursorPosition(s_console_out, origin);
+		SMALL_RECT viewport = {0, 0, static_cast<SHORT>(info.dwSize.X - 1),
+							   static_cast<SHORT>(info.srWindow.Bottom - info.srWindow.Top)};
+		SetConsoleWindowInfo(s_console_out, TRUE, &viewport);
 	});
 	return 0;
 }
@@ -177,11 +180,8 @@ static void flush_writer() {
 	CloseHandle(done);
 }
 
-static const char CONSOLE_RESUME_LUA[] = "local co = __console_read_co\n"
-										 "__console_read_co = nil\n"
-										 "local r = __console_read_result\n"
-										 "__console_read_result = nil\n"
-										 "if co then coroutine.resume(co, r) end\n";
+static lua_State *s_read_coroutine = nullptr;
+static int s_read_coroutine_ref = LUA_NOREF;
 
 static DWORD WINAPI read_thread_proc(LPVOID) {
 	flush_writer();
@@ -191,10 +191,11 @@ static DWORD WINAPI read_thread_proc(LPVOID) {
 	DWORD nread = 0;
 	if (!ReadConsoleA(s_console_in, buf, sizeof(buf) - 1, &nread, NULL)) {
 		lua_thread_queue([](lua_State *L) {
-			int base = lua_gettop(L);
-			lua_pushnil(L);
-			lua_setglobal(L, "__console_read_co");
-			game_lua_settop(L, base);
+			if (s_read_coroutine_ref != LUA_NOREF) {
+				luaL_unref(L, LUA_REGISTRYINDEX, s_read_coroutine_ref);
+				s_read_coroutine_ref = LUA_NOREF;
+			}
+			s_read_coroutine = nullptr;
 		});
 		return 1;
 	}
@@ -205,14 +206,24 @@ static DWORD WINAPI read_thread_proc(LPVOID) {
 
 	lua_thread_queue([result](lua_State *L) {
 		int base = lua_gettop(L);
+		lua_State *co = s_read_coroutine;
+		int ref = s_read_coroutine_ref;
+		s_read_coroutine = nullptr;
+		s_read_coroutine_ref = LUA_NOREF;
+
+		if (!co) {
+			spdlog::error("[console] read completed but no coroutine to resume");
+			return;
+		}
 
 		lua_pushstring(L, result.c_str());
-		lua_setglobal(L, "__console_read_result");
+		int r = game_lua_resume(L, co, 1);
+		if (r < 0) {
+			const char *err = lua_tostring(L, -1);
+			spdlog::error("[console] coroutine resume failed: {}", err ? err : "(unknown)");
+		}
 
-		int s = game_luaL_loadbuffer(L, CONSOLE_RESUME_LUA, static_cast<int>(strlen(CONSOLE_RESUME_LUA)),
-									 "=console_resume");
-		if (s == 0) game_lua_pcall(L, 0, 0, 0);
-
+		if (ref != LUA_NOREF) luaL_unref(L, LUA_REGISTRYINDEX, ref);
 		game_lua_settop(L, base);
 	});
 
@@ -222,20 +233,22 @@ static DWORD WINAPI read_thread_proc(LPVOID) {
 static int l_console_read_line(lua_State *L) {
 	ensure_console();
 
+	s_read_coroutine = L;
 	lua_pushthread(L);
-	lua_setglobal(L, "__console_read_co");
+	s_read_coroutine_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
 	HANDLE h = CreateThread(nullptr, 0, read_thread_proc, nullptr, 0, nullptr);
 	if (h) {
 		CloseHandle(h);
 	} else {
-		lua_pushnil(L);
-		lua_setglobal(L, "__console_read_co");
+		luaL_unref(L, LUA_REGISTRYINDEX, s_read_coroutine_ref);
+		s_read_coroutine_ref = LUA_NOREF;
+		s_read_coroutine = nullptr;
 		lua_pushstring(L, "failed to create read thread");
 		return lua_error(L);
 	}
 
-	return lua_yield(L, 0);
+	return game_lua_yield(L);
 }
 
 static const LuaApiFunction CONSOLE_FUNCTIONS[] = {
