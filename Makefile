@@ -1,3 +1,4 @@
+# TODO: switch to cmake
 CC  := i686-w64-mingw32-gcc
 CXX := i686-w64-mingw32-g++
 
@@ -59,6 +60,7 @@ LOADER_CPP_SRCS := \
     src/core/keybind.cpp \
     src/env/environment.cpp \
     src/env/sandbox.cpp \
+    src/env/api.cpp \
     src/env/api/console.cpp \
     src/env/api/file.cpp \
     src/env/api/mod.cpp \

@@ -1,12 +1,10 @@
 #include "mod.h"
-#include "../../lua/game_lua.h"
+#include "../api.h"
 #include "../environment.h"
 
 extern "C" {
 #include <lua.h>
 }
-
-#include <cstring>
 
 static int l_get_root(lua_State *L) {
 	const std::string &root = get_environment().mod_root();
@@ -20,27 +18,17 @@ static int l_get_id(lua_State *L) {
 	return 1;
 }
 
-void mod_api_register(lua_State *L) {
-	lua_pushcfunction(L, l_get_root);
-	lua_setglobal(L, "__mod_getRoot");
-	lua_pushcfunction(L, l_get_id);
-	lua_setglobal(L, "__mod_getId");
-}
+static const LuaApiFunction MOD_FUNCTIONS[] = {
+	{"getRoot", l_get_root},
+	{"getId", l_get_id},
+};
 
-// This is a janky solution
-static const char API_BUILD_LUA[] = R"LUA(
-mod = {
-    getRoot = __mod_getRoot,
-    getId   = __mod_getId,
-}
-__mod_getRoot = nil
-__mod_getId   = nil
-)LUA";
+static const LuaApiTable MOD_TABLE = {
+	"mod",
+	MOD_FUNCTIONS,
+	sizeof(MOD_FUNCTIONS) / sizeof(MOD_FUNCTIONS[0]),
+};
 
-void mod_api_build_table(lua_State *L) {
-	int base = lua_gettop(L);
-	int s = game_luaL_loadbuffer(L, API_BUILD_LUA, static_cast<int>(strlen(API_BUILD_LUA)), "=jeode_api_init");
-	if (s == 0) game_lua_pcall(L, 0, 0, 0);
-
-	game_lua_settop(L, base);
+const LuaApiTable &mod_api_table() {
+	return MOD_TABLE;
 }

@@ -1,6 +1,7 @@
 #include "console.h"
 #include "../../lua/game_lua.h"
 #include "../../lua/thread.h"
+#include "../api.h"
 
 extern "C" {
 #include <lua.h>
@@ -237,29 +238,18 @@ static int l_console_read_line(lua_State *L) {
 	return lua_yield(L, 0);
 }
 
-void console_api_register(lua_State *L) {
-	lua_newtable(L);
+static const LuaApiFunction CONSOLE_FUNCTIONS[] = {
+	{"showWindow", l_console_show}, {"hideWindow", l_console_hide},		 {"setTitle", l_console_set_title},
+	{"write", l_console_write},		{"writeLine", l_console_write_line}, {"clear", l_console_clear},
+	{"read", l_console_read_line},
+};
 
-	lua_pushcfunction(L, l_console_show);
-	lua_setfield(L, -2, "showWindow");
+static const LuaApiTable CONSOLE_TABLE = {
+	"console",
+	CONSOLE_FUNCTIONS,
+	sizeof(CONSOLE_FUNCTIONS) / sizeof(CONSOLE_FUNCTIONS[0]),
+};
 
-	lua_pushcfunction(L, l_console_hide);
-	lua_setfield(L, -2, "hideWindow");
-
-	lua_pushcfunction(L, l_console_set_title);
-	lua_setfield(L, -2, "setTitle");
-
-	lua_pushcfunction(L, l_console_write);
-	lua_setfield(L, -2, "write");
-
-	lua_pushcfunction(L, l_console_write_line);
-	lua_setfield(L, -2, "writeLine");
-
-	lua_pushcfunction(L, l_console_clear);
-	lua_setfield(L, -2, "clear");
-
-	lua_pushcfunction(L, l_console_read_line);
-	lua_setfield(L, -2, "read");
-
-	lua_setglobal(L, "console");
+const LuaApiTable &console_api_table() {
+	return CONSOLE_TABLE;
 }

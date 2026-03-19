@@ -1,5 +1,5 @@
 #include "file.h"
-#include "../../lua/game_lua.h"
+#include "../api.h"
 
 extern "C" {
 #include <lauxlib.h>
@@ -234,62 +234,34 @@ static int l_file_delfile(lua_State *L) {
 	return 0;
 }
 
-// TODO: This is extremely messy
-void file_api_init(lua_State *L, const char *gameDir) {
+void file_api_init(const char *gameDir) {
 	s_game_dir = gameDir;
 	std::error_code ec;
 	s_canon_root = fs::canonical(fs::path(gameDir), ec).generic_string();
 
 	spdlog::debug("[file_api] initialized (gameDir='{}')", gameDir);
-
-	lua_pushcfunction(L, l_file_read);
-	lua_setglobal(L, "__file_read");
-	lua_pushcfunction(L, l_file_write);
-	lua_setglobal(L, "__file_write");
-	lua_pushcfunction(L, l_file_append);
-	lua_setglobal(L, "__file_append");
-	lua_pushcfunction(L, l_file_list);
-	lua_setglobal(L, "__file_list");
-	lua_pushcfunction(L, l_file_isfile);
-	lua_setglobal(L, "__file_isFile");
-	lua_pushcfunction(L, l_file_isfolder);
-	lua_setglobal(L, "__file_isFolder");
-	lua_pushcfunction(L, l_file_makefolder);
-	lua_setglobal(L, "__file_makeFolder");
-	lua_pushcfunction(L, l_file_delfolder);
-	lua_setglobal(L, "__file_deleteFolder");
-	lua_pushcfunction(L, l_file_delfile);
-	lua_setglobal(L, "__file_deleteFile");
 }
 
-static const char API_BUILD_LUA[] = R"LUA(
-file = {
-    read         = __file_read,
-    write        = __file_write,
-    append       = __file_append,
-    list         = __file_list,
-    isFile       = __file_isFile,
-    isFolder     = __file_isFolder,
-    makeFolder   = __file_makeFolder,
-    deleteFolder = __file_deleteFolder,
-    deleteFile   = __file_deleteFile,
-}
-__file_read         = nil
-__file_write        = nil
-__file_append       = nil
-__file_list         = nil
-__file_isFile       = nil
-__file_isFolder     = nil
-__file_makeFolder   = nil
-__file_deleteFolder = nil
-__file_deleteFile   = nil
-)LUA";
+static const LuaApiFunction FILE_FUNCTIONS[] = {
+	{"read", l_file_read},
+	{"write", l_file_write},
+	{"append", l_file_append},
+	{"list", l_file_list},
+	{"isFile", l_file_isfile},
+	{"isFolder", l_file_isfolder},
+	{"makeFolder", l_file_makefolder},
+	{"deleteFolder", l_file_delfolder},
+	{"deleteFile", l_file_delfile},
+};
 
-void file_api_build_table(lua_State *L) {
-	int base = lua_gettop(L);
-	int s = game_luaL_loadbuffer(L, API_BUILD_LUA, static_cast<int>(strlen(API_BUILD_LUA)), "=file_api_init");
-	if (s == 0) game_lua_pcall(L, 0, 0, 0);
-	game_lua_settop(L, base);
+static const LuaApiTable FILE_TABLE = {
+	"file",
+	FILE_FUNCTIONS,
+	sizeof(FILE_FUNCTIONS) / sizeof(FILE_FUNCTIONS[0]),
+};
+
+const LuaApiTable &file_api_table() {
+	return FILE_TABLE;
 }
 
 void file_api_set_mod_root(const char *path) {

@@ -1,5 +1,5 @@
 #pragma once
 
-struct lua_State;
+struct LuaApiTable;
 
-void console_api_register(lua_State *L);
+const LuaApiTable &console_api_table();

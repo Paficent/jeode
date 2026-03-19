@@ -3,9 +3,8 @@
 #include "../core/version.h"
 #include "../lua/game_lua.h"
 #include "../lua/thread.h"
-#include "api/console.h"
+#include "api.h"
 #include "api/file.h"
-#include "api/mod.h"
 
 extern "C" {
 #include <lua.h>
@@ -358,11 +357,7 @@ void Environment::register_apis(lua_State *L, const std::string &gameDirStr) {
 	set_global_cfunc(L, "__env_log", env_log);
 	set_global_cfunc(L, "__env_executor_log", env_executor_log);
 
-	console_api_register(L);
-	file_api_init(L, gameDirStr.c_str());
-	file_api_build_table(L);
-	mod_api_register(L);
-	mod_api_build_table(L);
+	api_register_all(L, gameDirStr);
 
 	spdlog::debug("[env] APIs registered (gameDir='{}')", gameDirStr);
 }
