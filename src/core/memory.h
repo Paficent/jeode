@@ -99,38 +99,4 @@ inline uintptr_t pattern_scan(uintptr_t start, size_t size, const char *pattern)
 	return 0;
 }
 
-// Old scan functions
-inline uintptr_t scan(uintptr_t start, size_t size, const unsigned char *pattern, size_t patLen) {
-	const auto *region = reinterpret_cast<const uint8_t *>(start);
-	for (size_t i = 0; i + patLen <= size; i++) {
-		if (memcmp(region + i, pattern, patLen) == 0) return start + i;
-	}
-	return 0;
-}
-
-inline uintptr_t scan_masked(uintptr_t start, size_t size, const unsigned char *pattern, const char *mask) {
-	const auto *region = reinterpret_cast<const uint8_t *>(start);
-	size_t patLen = strlen(mask);
-
-	for (size_t i = 0; i + patLen <= size; i++) {
-		bool found = true;
-		for (size_t j = 0; j < patLen; j++) {
-			if (mask[j] == 'x' && region[i + j] != pattern[j]) {
-				found = false;
-				break;
-			}
-		}
-		if (found) return start + i;
-	}
-	return 0;
-}
-
-inline uintptr_t find_prologue(uintptr_t interior, int maxBack) {
-	const auto *p = reinterpret_cast<const uint8_t *>(interior);
-	for (int i = 0; i < maxBack; i++) {
-		if (p[-i] == 0x55 && p[-i + 1] == 0x8B && p[-i + 2] == 0xEC) return interior - i;
-	}
-	return 0;
-}
-
 } // namespace memory

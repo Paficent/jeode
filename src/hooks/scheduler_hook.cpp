@@ -11,8 +11,6 @@
 #include <mutex>
 #include <vector>
 
-// TODO: Implement new memory.h pattern scanning
-
 //   55              PUSH EBP
 //   8B EC           MOV EBP, ESP
 //   83 EC ??        SUB ESP, <frame_size>
@@ -37,20 +35,17 @@
 //   E8 ?? ?? ?? ??  CALL <case1_jz_fn>
 //   5F 5E 33 C0 5B  POP EDI; POP ESI; XOR EAX,EAX; POP EBX
 //   8B E5 5D C3     epilogue
-static const unsigned char PATTERN_SCHEDULER_TICK[] = "\x55\x8B\xEC\x83\xEC\x00\x53\x56\x57\x8B\xF9\x8B\x77\x00"
-													  "\x0F\xB6\x46\x00\x83\xF8\x00\x0F\x87\x00\x00\x00\x00"
-													  "\xFF\x24\x85\x00\x00\x00\x00\xE8\x00\x00\x00\x00"
-													  "\x5F\x5E\x33\xC0\x5B\x8B\xE5\x5D\xC3"
-													  "\x83\x7E\x00\x00\x74\x00\x8B\xCE\xE8\x00\x00\x00\x00"
-													  "\x5F\x5E\x5B\x8B\xE5\x5D\xC3"
-													  "\xE8\x00\x00\x00\x00\x5F\x5E\x33\xC0\x5B\x8B\xE5\x5D\xC3";
 
-static const char MASK_SCHEDULER_TICK[] = "xxxxx?xxxxxxx?"
-										  "xxx?xx?xx????xxx????x????"
-										  "xxxxxxxxx"
-										  "xx?xx?xxx????"
-										  "xxxxxxx"
-										  "x????xxxxxxxxx";
+// clang-format off
+static const char PATTERN_SCHEDULER_TICK[] =
+    "55 8B EC 83 EC ? 53 56 57 8B F9 8B 77 ?"
+    " 0F B6 46 ? 83 F8 ? 0F 87 ? ? ? ?"
+    " FF 24 85 ? ? ? ? E8 ? ? ? ?"
+    " 5F 5E 33 C0 5B 8B E5 5D C3"
+    " 83 7E ? 00 74 ? 8B CE E8 ? ? ? ?"
+    " 5F 5E 5B 8B E5 5D C3"
+    " E8 ? ? ? ? 5F 5E 33 C0 5B 8B E5 5D C3";
+// clang-format on
 
 static const uint32_t RVA_SCHEDULER_TICK = 0x0020c190;
 
@@ -99,7 +94,7 @@ bool scheduler_hook_install() {
 	size_t textSize = 0;
 	memory::get_text_section(base, &textStart, &textSize);
 
-	uintptr_t addr = memory::scan_masked(textStart, textSize, PATTERN_SCHEDULER_TICK, MASK_SCHEDULER_TICK);
+	uintptr_t addr = memory::pattern_scan(textStart, textSize, PATTERN_SCHEDULER_TICK);
 	if (addr) {
 		spdlog::debug("[sched] found via pattern at {:#010x}", static_cast<unsigned>(addr));
 	} else {
