@@ -125,11 +125,19 @@ Section "jeode" SecMain
     SetOutPath "$INSTDIR\jeode"
     File "${BUILD_DIR}\jeode\libjeode.dll"
     SetOutPath "$INSTDIR"
+
+    WriteUninstaller "$INSTDIR\uninstall-jeode.exe"
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\jeode" "DisplayName" "jeode"
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\jeode" "UninstallString" "$INSTDIR\uninstall-jeode.exe"
 SectionEnd
 
 Section "Uninstall"
+    DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\jeode"
+
     Delete "$INSTDIR\winhttp.dll"
     Delete "$INSTDIR\jeode\libjeode.dll"
     Delete "$INSTDIR\jeode\config.json"
-    RMDir "$INSTDIR\jeode"
+    RMDir /r "$INSTDIR\jeode"
+
+    Delete "$INSTDIR\uninstall-jeode.exe"
 SectionEnd
