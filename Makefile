@@ -69,7 +69,6 @@ LOADER_CPP_SRCS := \
     src/core/overlay.cpp \
     src/hooks/hook_manager.cpp \
     src/hooks/file_hook.cpp \
-    src/hooks/ssl_hook.cpp \
     src/hooks/scheduler_hook.cpp \
     src/hooks/egl_hook.cpp \
     src/loader/schema.cpp \

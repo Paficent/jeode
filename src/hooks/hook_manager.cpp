@@ -6,7 +6,6 @@
 #include "egl_hook.h"
 #include "file_hook.h"
 #include "scheduler_hook.h"
-#include "ssl_hook.h"
 
 #include <spdlog/spdlog.h>
 
@@ -58,17 +57,14 @@ bool hooks_init_early() {
 	spdlog::debug("[hooks] MinHook initialized");
 
 	bool file_ok = file_hook_install();
-	bool ssl_ok = ssl_hook_install();
 	bool sched_ok = scheduler_hook_install();
 	bool egl_ok = egl_hook_install();
 
 	if (!file_ok) spdlog::warn("[hooks] file hook install failed (non-fatal)");
-	if (!ssl_ok) spdlog::warn("[hooks] SSL hook install failed (non-fatal)");
 	if (!sched_ok) spdlog::warn("[hooks] scheduler hook install failed (non-fatal)");
 	if (!egl_ok) spdlog::warn("[hooks] EGL hook install failed (non-fatal)");
 
-	spdlog::info("[hooks] early hooks installed (file={}, ssl={}, scheduler={}, egl={})", file_ok, ssl_ok, sched_ok,
-				 egl_ok);
+	spdlog::info("[hooks] early hooks installed (file={}, scheduler={}, egl={})", file_ok, sched_ok, egl_ok);
 	return true;
 }
 
@@ -115,7 +111,6 @@ void hooks_shutdown() {
 	native_mods_unload();
 	egl_hook_shutdown();
 	file_hook_shutdown();
-	ssl_hook_shutdown();
 	scheduler_hook_shutdown();
 	MH_DisableHook(MH_ALL_HOOKS);
 	MH_Uninitialize();

@@ -31,7 +31,7 @@ inline void get_text_section(uintptr_t base, uintptr_t *outStart, size_t *outSiz
 
 struct CompiledPattern {
 	std::vector<uint8_t> bytes;
-	std::vector<uint8_t> mask; // changed from bool to uint8_t
+	std::vector<uint8_t> mask;
 };
 
 inline CompiledPattern compile_pattern(const char *pattern) {
