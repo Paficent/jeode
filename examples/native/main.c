@@ -14,6 +14,7 @@ JEODE_EXPORT int JEODE_CALL jeode_native_init(const struct JeodeNativeAPI *api) 
 	g_api = api;
 
 	g_api->log("native-example", "native mod loaded");
+	g_api->log("native-example", g_api->game_version);
 	g_api->log("native-example", g_api->is_lua_ready() ? "lua is ready" : "lua not ready yet");
 
 	g_api->register_global("native_test", native_test);

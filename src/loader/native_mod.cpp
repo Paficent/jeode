@@ -1,4 +1,5 @@
 #include "native_mod.h"
+#include "../core/version.h"
 #include "../lua/game_lua.h"
 #include "../lua/thread.h"
 
@@ -15,6 +16,7 @@ struct NativeModContext {
 	HMODULE handle = nullptr;
 	std::string mod_id;
 	std::string mod_path;
+	std::string game_ver;
 	JeodeNativeAPI api{};
 	jeode_native_shutdown_fn shutdown_fn = nullptr;
 };
@@ -120,11 +122,13 @@ static bool load_native_mod(const Mod &mod) {
 	ctx->handle = handle;
 	ctx->mod_id = manifest.id;
 	ctx->mod_path = mod.getPath().generic_string();
+	ctx->game_ver = version::game_version();
 	ctx->shutdown_fn = reinterpret_cast<jeode_native_shutdown_fn>(GetProcAddress(handle, "jeode_native_shutdown"));
 
 	ctx->api.api_version = JEODE_NATIVE_API_VERSION;
 	ctx->api.mod_id = ctx->mod_id.c_str();
 	ctx->api.mod_path = ctx->mod_path.c_str();
+	ctx->api.game_version = ctx->game_ver.c_str();
 	ctx->api.log = native_log;
 	ctx->api.queue_lua = native_queue_lua;
 	ctx->api.register_global = native_register_global;

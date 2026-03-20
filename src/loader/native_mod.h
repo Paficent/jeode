@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <vector>
 
-#define JEODE_NATIVE_API_VERSION 1
+#define JEODE_NATIVE_API_VERSION 2
 #define JEODE_CALL __cdecl
 
 typedef void(JEODE_CALL *jeode_log_fn)(const char *tag, const char *message);
@@ -17,6 +17,7 @@ struct JeodeNativeAPI {
 	int api_version;
 	const char *mod_id;
 	const char *mod_path;
+	const char *game_version;
 	jeode_log_fn log;
 	jeode_queue_lua_fn queue_lua;
 	jeode_register_global_fn register_global;
