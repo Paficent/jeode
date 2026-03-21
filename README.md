@@ -43,7 +43,7 @@ On Linux or macOS, the game won't load a local `winhttp.dll` unless you tell Win
 
 ## Mods
 
-Place mods in the `mods/` folder inside your game directory. Each mod is a subfolder with a `manifest.json`, an optional `data` folder, and an optional entry (typically `init.lua`):
+Place mods in the `mods/` folder inside your game directory. Each mod is a subfolder with a `manifest.json`, an optional `data` folder for asset overrides, and an optional entry (typically `init.lua`):
 
 ```
 My Singing Monsters/
