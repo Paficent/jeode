@@ -8,7 +8,7 @@
 Jeode is a mod loader and framework for the PC version of [My Singing Monsters](https://store.steampowered.com/app/1419170/My_Singing_Monsters/), designed to make loading mods simple and development more powerful.
 
 > [!CAUTION]
-> Jeode is currently in its infancy. Bugs and issues are expected when using pre-release builds. Stability is not guaranteed.
+> Jeode is currently in its infancy. Bugs and issues are expected and stability is not guaranteed. Reporting these is the best way to help Jeode improve.
 
 ## Installation
 
