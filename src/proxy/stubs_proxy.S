@@ -123,8 +123,8 @@ _proxy_WinHttpQueryOption:
 .global _proxy_WinHttpReadDataEx
 _proxy_WinHttpReadDataEx:
     jmp *_orig_WinHttpReadDataEx
-.global _proxy_WinHttpRegisterProxyChangeNotification
 
+.global _proxy_WinHttpRegisterProxyChangeNotification
 _proxy_WinHttpRegisterProxyChangeNotification:
     jmp *_orig_WinHttpRegisterProxyChangeNotification
 
@@ -135,6 +135,7 @@ _proxy_WinHttpResetAutoProxy:
 .global _proxy_WinHttpSetCredentials
 _proxy_WinHttpSetCredentials:
     jmp *_orig_WinHttpSetCredentials
+
 .global _proxy_WinHttpSetDefaultProxyConfiguration
 _proxy_WinHttpSetDefaultProxyConfiguration:
     jmp *_orig_WinHttpSetDefaultProxyConfiguration
