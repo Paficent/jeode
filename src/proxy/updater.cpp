@@ -15,7 +15,7 @@
 namespace fs = std::filesystem;
 using json = nlohmann::json;
 
-static constexpr int64_t CHECK_INTERVAL_SECONDS = 3600;
+static constexpr int64_t CHECK_INTERVAL_SECONDS = 1800;
 static constexpr const char *GITHUB_API_LATEST = "https://api.github.com/repos/Paficent/jeode/releases/latest";
 static constexpr const char *HTTP_USER_AGENT = "jeode-updater/1.0";
 
