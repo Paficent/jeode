@@ -3,7 +3,7 @@
   "name": "Example Native Mod",
   "author": "Paficent",
   "version": "1.0.0",
-  "game_version": "5.3.0",
+  "game_version": "5.3.2",
   "error_on_game_update": false,
   "entry": "",
   "native_entry": "native_example.dll",
