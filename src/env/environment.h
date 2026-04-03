@@ -23,7 +23,7 @@ class Environment {
 	const std::string &mod_root() const;
 
   private:
-	void register_apis(lua_State *L, const std::string &gameDirStr);
+	void register_apis(lua_State *L, const std::string &gameDirStr, const ModLoader *loader);
 	void load_mods(lua_State *L, const ModLoader *loader, const std::string &activeVersion);
 
 	Sandbox m_sandbox;

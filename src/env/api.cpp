@@ -1,6 +1,7 @@
 #include "api.h"
 #include "./api/console.h"
 #include "./api/file.h"
+#include "./api/jeode.h"
 #include "./api/mod.h"
 
 extern "C" {
@@ -26,12 +27,14 @@ void api_register_table(lua_State *L, const LuaApiTable &table) {
 	lua_setglobal(L, table.name);
 }
 
-void api_register_all(lua_State *L, const std::string &gameDir) {
+void api_register_all(lua_State *L, const std::string &gameDir, const ModLoader *loader) {
 	file_api_init(gameDir.c_str());
+	jeode_api_init(loader);
 
 	api_register_table(L, console_api_table());
 	api_register_table(L, file_api_table());
 	api_register_table(L, mod_api_table());
+	api_register_table(L, jeode_api_table());
 
 	spdlog::debug("[api] Lua api registered");
 }

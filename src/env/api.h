@@ -4,6 +4,7 @@
 #include <string>
 
 struct lua_State;
+class ModLoader;
 
 struct LuaApiFunction {
 	const char *name;
@@ -18,4 +19,4 @@ struct LuaApiTable {
 
 void api_register_table(lua_State *L, const LuaApiTable &table);
 
-void api_register_all(lua_State *L, const std::string &gameDir);
+void api_register_all(lua_State *L, const std::string &gameDir, const ModLoader *loader);

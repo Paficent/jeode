@@ -333,13 +333,13 @@ const std::string &Environment::mod_root() const {
 	return m_mod_root;
 }
 
-void Environment::register_apis(lua_State *L, const std::string &gameDirStr) {
+void Environment::register_apis(lua_State *L, const std::string &gameDirStr, const ModLoader *loader) {
 	set_global_cfunc(L, "__env_loadchunk", env_loadchunk);
 	set_global_cfunc(L, "__env_loadstring", env_loadstring);
 	set_global_cfunc(L, "__env_log", env_log);
 	set_global_cfunc(L, "__env_executor_log", env_executor_log);
 
-	api_register_all(L, gameDirStr);
+	api_register_all(L, gameDirStr, loader);
 
 	spdlog::debug("[env] APIs registered (gameDir='{}')", gameDirStr);
 }
@@ -476,7 +476,7 @@ void Environment::init(lua_State *L, const ModLoader *loader, const fs::path &ga
 	std::error_code ec;
 	std::string gameDirStr = fs::canonical(gameDir, ec).generic_string();
 
-	register_apis(L, gameDirStr);
+	register_apis(L, gameDirStr, loader);
 
 	std::string activeVersion = gameVersion.empty() ? buildVersion : gameVersion;
 	spdlog::info("[env] game version: '{}', {} mod(s) to load", activeVersion, loader->getAllMods().size());

@@ -64,6 +64,7 @@ LOADER_CPP_SRCS := \
     src/env/api/console.cpp \
     src/env/api/file.cpp \
     src/env/api/mod.cpp \
+    src/env/api/jeode.cpp \
     src/lua/game_lua.cpp \
     src/lua/thread.cpp \
     src/core/overlay.cpp \
