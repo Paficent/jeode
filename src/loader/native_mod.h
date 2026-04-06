@@ -27,5 +27,5 @@ struct JeodeNativeAPI {
 typedef int(JEODE_CALL *jeode_native_init_fn)(const JeodeNativeAPI *api);
 typedef void(JEODE_CALL *jeode_native_shutdown_fn)(void);
 
-void native_mods_load(const std::vector<std::shared_ptr<Mod>> &mods, bool enabled);
+void native_mods_load(const std::vector<std::shared_ptr<Mod>> &mods);
 void native_mods_unload();

@@ -41,20 +41,6 @@ extern "C" BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
 		fs::path jeodeDir = gameDir / "jeode";
 		JeodeConfig cfg = config_load(jeodeDir);
 
-		if (cfg.enable_native_mods) {
-			int choice = MessageBoxA(nullptr,
-									 "Native mods (DLLs) are enabled in your Jeode configuration.\n\n"
-									 "Native mods can execute arbitrary code on your system with full permissions"
-									 "Only enable this if you trust every native mod in your mods folder."
-									 "\n\nContinue loading native mods?",
-									 "Jeode - Native Mods Warning",
-									 MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2 | MB_TOPMOST);
-			if (choice != IDYES) {
-				cfg.enable_native_mods = false;
-				config_save(cfg, jeodeDir);
-			}
-		}
-
 		if (std::string(JEODE_VERSION) != "dev") updater_run(cfg, gameDir);
 
 		launch_libjeode(cfg, gameDir);

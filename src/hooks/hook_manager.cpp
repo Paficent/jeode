@@ -30,12 +30,11 @@ static void on_game_ready() {
 	}
 
 	const ModLoader *loader = g_modLoader;
-	bool nativeEnabled = g_config.enable_native_mods;
 	std::filesystem::path gameDir = g_gameDir;
 	JeodeConfig config = g_config;
 
-	spdlog::debug("[hooks] queuing native mod load (nativeEnabled={}) and environment init", nativeEnabled);
-	scheduler_queue_work([loader, nativeEnabled]() { native_mods_load(loader->getAllMods(), nativeEnabled); });
+	spdlog::debug("[hooks] queuing native mod load and environment init");
+	scheduler_queue_work([loader]() { native_mods_load(loader->getAllMods()); });
 
 	scheduler_queue_work([L, loader, gameDir, config]() { get_environment().init(L, loader, gameDir, config); });
 }

@@ -164,7 +164,6 @@ struct ConfigState {
 
 	bool is_dirty() const {
 		return live.overlays_enabled != saved.overlays_enabled || live.debug != saved.debug ||
-			   live.enable_native_mods != saved.enable_native_mods ||
 			   live.allow_unsafe_functions != saved.allow_unsafe_functions || live.toggle_key != saved.toggle_key;
 	}
 };
@@ -185,9 +184,6 @@ static void draw_config_tab() {
 
 	ImGui::Checkbox("Overlays Enabled", &s_config.live.overlays_enabled);
 	ImGui::Checkbox("Debug Mode", &s_config.live.debug);
-	ImGui::Checkbox("Enable Native Mods", &s_config.live.enable_native_mods);
-	if (s_config.live.enable_native_mods)
-		ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), "Native mods allow arbitrary code execution.");
 	ImGui::Checkbox("Allow Unsafe Functions", &s_config.live.allow_unsafe_functions);
 
 	ImGui::Spacing();

@@ -34,7 +34,6 @@ JeodeConfig config_load(const fs::path &jeodeDir) {
 			cfg.last_update_check = read_int64(j, "last_update_check", cfg.last_update_check);
 			cfg.overlays_enabled = read_bool(j, "overlays_enabled", cfg.overlays_enabled);
 			cfg.debug = read_bool(j, "debug", cfg.debug);
-			cfg.enable_native_mods = read_bool(j, "enable_native_mods", cfg.enable_native_mods);
 			cfg.allow_unsafe_functions = read_bool(j, "allow_unsafe_functions", cfg.allow_unsafe_functions);
 
 			std::string key_name = read_string(j, "toggle_key", keybind_vk_to_name(cfg.toggle_key));
@@ -55,7 +54,6 @@ void config_save(const JeodeConfig &cfg, const fs::path &jeodeDir) {
 	j["last_update_check"] = cfg.last_update_check;
 	j["overlays_enabled"] = cfg.overlays_enabled;
 	j["debug"] = cfg.debug;
-	j["enable_native_mods"] = cfg.enable_native_mods;
 	j["allow_unsafe_functions"] = cfg.allow_unsafe_functions;
 
 	std::string key_name = keybind_vk_to_name(cfg.toggle_key);
