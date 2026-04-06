@@ -8,6 +8,7 @@ struct JeodeConfig {
 	bool overlays_enabled = true;
 	bool debug = false;
 	bool allow_unsafe_functions = false;
+	bool suppress_native_warnings = false;
 	int toggle_key = 0x70; // F1
 };
 

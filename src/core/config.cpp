@@ -35,6 +35,7 @@ JeodeConfig config_load(const fs::path &jeodeDir) {
 			cfg.overlays_enabled = read_bool(j, "overlays_enabled", cfg.overlays_enabled);
 			cfg.debug = read_bool(j, "debug", cfg.debug);
 			cfg.allow_unsafe_functions = read_bool(j, "allow_unsafe_functions", cfg.allow_unsafe_functions);
+			cfg.suppress_native_warnings = read_bool(j, "suppress_native_warnings", cfg.suppress_native_warnings);
 
 			std::string key_name = read_string(j, "toggle_key", keybind_vk_to_name(cfg.toggle_key));
 			int vk = keybind_name_to_vk(key_name);
@@ -55,6 +56,7 @@ void config_save(const JeodeConfig &cfg, const fs::path &jeodeDir) {
 	j["overlays_enabled"] = cfg.overlays_enabled;
 	j["debug"] = cfg.debug;
 	j["allow_unsafe_functions"] = cfg.allow_unsafe_functions;
+	j["suppress_native_warnings"] = cfg.suppress_native_warnings;
 
 	std::string key_name = keybind_vk_to_name(cfg.toggle_key);
 	j["toggle_key"] = key_name.empty() ? "F1" : key_name;

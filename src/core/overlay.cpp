@@ -164,7 +164,8 @@ struct ConfigState {
 
 	bool is_dirty() const {
 		return live.overlays_enabled != saved.overlays_enabled || live.debug != saved.debug ||
-			   live.allow_unsafe_functions != saved.allow_unsafe_functions || live.toggle_key != saved.toggle_key;
+			   live.allow_unsafe_functions != saved.allow_unsafe_functions ||
+			   live.suppress_native_warnings != saved.suppress_native_warnings || live.toggle_key != saved.toggle_key;
 	}
 };
 
@@ -185,6 +186,7 @@ static void draw_config_tab() {
 	ImGui::Checkbox("Overlays Enabled", &s_config.live.overlays_enabled);
 	ImGui::Checkbox("Debug Mode", &s_config.live.debug);
 	ImGui::Checkbox("Allow Unsafe Functions", &s_config.live.allow_unsafe_functions);
+	ImGui::Checkbox("Suppress Native Mod Warnings", &s_config.live.suppress_native_warnings);
 
 	ImGui::Spacing();
 

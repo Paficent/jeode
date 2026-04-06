@@ -30,11 +30,12 @@ static void on_game_ready() {
 	}
 
 	const ModLoader *loader = g_modLoader;
+	bool suppressWarnings = g_config.suppress_native_warnings;
 	std::filesystem::path gameDir = g_gameDir;
 	JeodeConfig config = g_config;
 
 	spdlog::debug("[hooks] queuing native mod load and environment init");
-	scheduler_queue_work([loader]() { native_mods_load(loader->getAllMods()); });
+	scheduler_queue_work([loader, suppressWarnings]() { native_mods_load(loader->getAllMods(), suppressWarnings); });
 
 	scheduler_queue_work([L, loader, gameDir, config]() { get_environment().init(L, loader, gameDir, config); });
 }

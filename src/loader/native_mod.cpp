@@ -150,7 +150,7 @@ static bool load_native_mod(const Mod &mod) {
 	return true;
 }
 
-void native_mods_load(const std::vector<std::shared_ptr<Mod>> &mods) {
+void native_mods_load(const std::vector<std::shared_ptr<Mod>> &mods, bool suppressWarnings) {
 	std::vector<const Mod *> native_mods;
 	for (const auto &mod : mods) {
 		const Manifest &manifest = mod->getManifest();
@@ -167,15 +167,17 @@ void native_mods_load(const std::vector<std::shared_ptr<Mod>> &mods) {
 
 	spdlog::info("[native] {} mod(s) with native entries detected", native_mods.size());
 
-	int choice = MessageBoxA(nullptr,
-							 "One or more mods use a native DLL.\n\n"
-							 "Native DLLs run with full system access and can do anything on your computer. "
-							 "Only run mods from trusted sources.\n\n"
-							 "Do you wish to load these native mods?",
-							 "Jeode - Native Mods", MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2 | MB_TOPMOST);
-	if (choice != IDYES) {
-		spdlog::info("[native] user declined native mod loading");
-		return;
+	if (!suppressWarnings) {
+		int choice = MessageBoxA(nullptr,
+								 "One or more mods use a native DLL.\n\n"
+								 "Native DLLs run with full system access and can do anything on your computer. "
+								 "Only run mods from trusted sources.\n\n"
+								 "Do you wish to load these native mods?",
+								 "Jeode - Native Mods", MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2 | MB_TOPMOST);
+		if (choice != IDYES) {
+			spdlog::info("[native] user declined native mod loading");
+			return;
+		}
 	}
 
 	for (const Mod *mod : native_mods) {
