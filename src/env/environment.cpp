@@ -222,7 +222,7 @@ do
     local cache = {}
     env.require = function(name)
         if type(name) ~= 'string' then error('require: name must be a string') end
-        if not name:match('^[%w_.]+$') or name:match('%.%.') then
+        if not name:match('^[%w_./]+$') or name:match('%.%.') or name:find('//') or name:sub(1, 1) == '/' then
             error("require: invalid module name '" .. name .. "'")
         end
         if name:sub(-4) == '.lua' then name = name:sub(1, -5) end
