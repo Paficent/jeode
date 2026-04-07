@@ -31,19 +31,25 @@ static void launch_libjeode(const JeodeConfig &cfg, const fs::path &gameDir) {
 	}
 }
 
+static DWORD WINAPI proxy_init_thread(LPVOID) {
+	fs::path gameDir = get_dll_directory();
+	fs::path jeodeDir = gameDir / "jeode";
+	JeodeConfig cfg = config_load(jeodeDir);
+
+	if (std::string(JEODE_VERSION) != "dev") updater_run(cfg, gameDir);
+
+	launch_libjeode(cfg, gameDir);
+	return 0;
+}
+
 extern "C" BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
 	if (reason == DLL_PROCESS_ATTACH) {
 		DisableThreadLibraryCalls(hModule);
 
 		if (!proxy_init_winhttp()) return FALSE;
 
-		fs::path gameDir = get_dll_directory();
-		fs::path jeodeDir = gameDir / "jeode";
-		JeodeConfig cfg = config_load(jeodeDir);
-
-		if (std::string(JEODE_VERSION) != "dev") updater_run(cfg, gameDir);
-
-		launch_libjeode(cfg, gameDir);
+		HANDLE hThread = CreateThread(nullptr, 0, proxy_init_thread, nullptr, 0, nullptr);
+		if (hThread) CloseHandle(hThread);
 	}
 
 	return TRUE;
