@@ -14,6 +14,7 @@ class Mod {
 
 	const std::string &getId() const;
 	const std::string &getName() const;
+	bool isEnabled() const;
 	int getLoadPriority() const;
 	int getDepth() const;
 	const Manifest &getManifest() const;

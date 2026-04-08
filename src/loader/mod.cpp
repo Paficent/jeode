@@ -29,6 +29,9 @@ const std::string &Mod::getId() const {
 const std::string &Mod::getName() const {
 	return manifest.name;
 }
+bool Mod::isEnabled() const {
+	return manifest.enabled;
+}
 int Mod::getLoadPriority() const {
 	return manifest.load_priority;
 }
@@ -70,6 +73,7 @@ void Mod::loadManifest() {
 			defaultJson["version"] = defaults.version;
 			defaultJson["game_version"] = defaults.game_version;
 			defaultJson["error_on_game_update"] = defaults.error_on_game_update;
+			defaultJson["enabled"] = defaults.enabled;
 			defaultJson["entry"] = defaults.entry;
 			defaultJson["load_priority"] = defaults.load_priority;
 			defaultJson["dependencies"] = json::array();
@@ -100,8 +104,8 @@ void Mod::loadManifest() {
 	schema::sanitize(manifest);
 	schema::validate(manifest, path);
 
-	spdlog::debug("[mod] '{}': id='{}', entry='{}', auto_override={}", dirName, manifest.id, manifest.entry,
-				  manifest.assets.auto_override);
+	spdlog::debug("[mod] '{}': id='{}', entry='{}', enabled={}, auto_override={}", dirName, manifest.id, manifest.entry,
+				  manifest.enabled, manifest.assets.auto_override);
 
 	if (rewrite) {
 		saveManifest();

@@ -22,6 +22,10 @@ void ModLoader::loadMods() {
 		dirCount++;
 		try {
 			auto mod = std::make_shared<Mod>(entry.path());
+			if (!mod->isEnabled()) {
+				spdlog::info("[loader] '{}' is disabled, skipping", mod->getId());
+				continue;
+			}
 			if (modMap.count(mod->getId())) {
 				spdlog::warn("[loader] duplicate mod id '{}' at '{}', skipping", mod->getId(), entry.path().string());
 				continue;

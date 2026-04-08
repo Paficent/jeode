@@ -36,6 +36,7 @@ Manifest parse(const json &j, const std::string &dirName) {
 	m.error_on_game_update = j.contains("error_on_game_update") && j["error_on_game_update"].is_boolean()
 								 ? j["error_on_game_update"].get<bool>()
 								 : true;
+	m.enabled = j.contains("enabled") && j["enabled"].is_boolean() ? j["enabled"].get<bool>() : true;
 	m.load_priority = j.contains("load_priority") && j["load_priority"].is_number_integer()
 						  ? j["load_priority"].get<int>()
 						  : 0;
@@ -134,6 +135,7 @@ std::string format(const Manifest &m) {
 	j["version"] = m.version;
 	j["game_version"] = m.game_version;
 	j["error_on_game_update"] = m.error_on_game_update;
+	j["enabled"] = m.enabled;
 	j["entry"] = m.entry;
 	if (!m.native_entry.empty()) j["native_entry"] = m.native_entry;
 	j["load_priority"] = m.load_priority;

@@ -18,6 +18,7 @@ struct Manifest {
 	bool error_on_game_update = true;
 	std::string entry = "init.lua";
 	std::string native_entry;
+	bool enabled = true;
 	int load_priority = 0;
 	std::vector<std::string> dependencies;
 
