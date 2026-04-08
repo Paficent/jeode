@@ -124,6 +124,10 @@ Section "jeode" SecMain
     File "${BUILD_DIR}\winhttp.dll"
     SetOutPath "$INSTDIR\jeode"
     File "${BUILD_DIR}\jeode\libjeode.dll"
+
+    IfFileExists "$INSTDIR\jeode\mods\*.*" +2 0
+        CreateDirectory "$INSTDIR\jeode\mods"
+
     SetOutPath "$INSTDIR"
 
     WriteUninstaller "$INSTDIR\uninstall-jeode.exe"
