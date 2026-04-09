@@ -125,8 +125,8 @@ Section "jeode" SecMain
     SetOutPath "$INSTDIR\jeode"
     File "${BUILD_DIR}\jeode\libjeode.dll"
 
-    IfFileExists "$INSTDIR\jeode\mods\*.*" +2 0
-        CreateDirectory "$INSTDIR\jeode\mods"
+    IfFileExists "$INSTDIR\mods\*.*" +2 0
+        CreateDirectory "$INSTDIR\mods"
 
     SetOutPath "$INSTDIR"
 
