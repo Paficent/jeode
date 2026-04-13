@@ -45,13 +45,19 @@ static void check_loaded(const std::string &rel) {
 typedef FILE *(__cdecl *fopen_t)(const char *, const char *);
 typedef FILE *(__cdecl *wfopen_t)(const wchar_t *, const wchar_t *);
 typedef int(__cdecl *wfopen_s_t)(FILE **, const wchar_t *, const wchar_t *);
+typedef HANDLE(WINAPI *CreateFileA_t)(LPCSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, DWORD, HANDLE);
+typedef HANDLE(WINAPI *CreateFileW_t)(LPCWSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, DWORD, HANDLE);
 
 static fopen_t g_orig_fopen = nullptr;
 static wfopen_t g_orig_wfopen = nullptr;
 static wfopen_s_t g_orig_wfopen_s = nullptr;
+static CreateFileA_t g_orig_CreateFileA = nullptr;
+static CreateFileW_t g_orig_CreateFileW = nullptr;
 static void *g_pfopen = nullptr;
 static void *g_pwfopen = nullptr;
 static void *g_pwfopen_s = nullptr;
+static void *g_pCreateFileA = nullptr;
+static void *g_pCreateFileW = nullptr;
 
 static std::wstring normalize_path(const std::wstring &path) {
 	std::wstring out = path;
@@ -197,6 +203,51 @@ static FILE *__cdecl hooked_fopen(const char *filename, const char *mode) {
 	return g_orig_fopen(filename, mode);
 }
 
+// TODO: At some point I can just remove the CRT hooks and hook solely on the CreateFile
+static HANDLE WINAPI hooked_CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
+										LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition,
+										DWORD dwFlagsAndAttributes, HANDLE hTemplateFile) {
+	if (!lpFileName || !g_configured)
+		return g_orig_CreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition,
+								  dwFlagsAndAttributes, hTemplateFile);
+
+	std::wstring abs = resolve_w(lpFileName);
+	const std::string *replacement = find_override_w(abs);
+
+	if (!replacement) {
+		// spdlog::trace("[file_hook] CreateFileW: {}", wide_to_utf8(lpFileName));
+		return g_orig_CreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition,
+								  dwFlagsAndAttributes, hTemplateFile);
+	}
+
+	spdlog::debug("[file_hook] override: {} -> {}", wide_to_utf8(lpFileName), *replacement);
+	std::wstring widePath = utf8_to_wide(*replacement);
+	return g_orig_CreateFileW(widePath.c_str(), dwDesiredAccess, dwShareMode, lpSecurityAttributes,
+							  dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+}
+
+// TODO: At some point I can just remove the CRT hooks and hook solely on the CreateFile
+static HANDLE WINAPI hooked_CreateFileA(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
+										LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition,
+										DWORD dwFlagsAndAttributes, HANDLE hTemplateFile) {
+	if (!lpFileName || !g_configured)
+		return g_orig_CreateFileA(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition,
+								  dwFlagsAndAttributes, hTemplateFile);
+
+	std::string abs = resolve_a(lpFileName);
+	const std::string *replacement = find_override_a(abs);
+
+	if (!replacement) {
+		// spdlog::trace("[file_hook] CreateFileA: {}", lpFileName);
+		return g_orig_CreateFileA(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition,
+								  dwFlagsAndAttributes, hTemplateFile);
+	}
+
+	spdlog::debug("[file_hook] override: {} -> {}", lpFileName, *replacement);
+	return g_orig_CreateFileA(replacement->c_str(), dwDesiredAccess, dwShareMode, lpSecurityAttributes,
+							  dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+}
+
 static void *resolve_from(const char *mod, const char *func) {
 	HMODULE h = GetModuleHandleA(mod);
 	return h ? reinterpret_cast<void *>(GetProcAddress(h, func)) : nullptr;
@@ -231,8 +282,11 @@ bool file_hook_install() {
 	g_pfopen = resolve_crt("fopen");
 	g_pwfopen = resolve_crt("_wfopen");
 	g_pwfopen_s = resolve_crt("_wfopen_s");
+	g_pCreateFileA = resolve_from("kernel32.dll", "CreateFileA");
+	g_pCreateFileW = resolve_from("kernel32.dll", "CreateFileW");
 
 	spdlog::debug("[file_hook] resolved fopen={}, _wfopen={}, _wfopen_s={}", g_pfopen, g_pwfopen, g_pwfopen_s);
+	spdlog::debug("[file_hook] resolved CreateFileA={}, CreateFileW={}", g_pCreateFileA, g_pCreateFileW);
 
 	bool ok = true;
 	if (g_pwfopen)
@@ -244,6 +298,12 @@ bool file_hook_install() {
 	if (g_pfopen)
 		ok &= install_hook(g_pfopen, reinterpret_cast<void *>(&hooked_fopen), reinterpret_cast<void **>(&g_orig_fopen),
 						   "fopen");
+	if (g_pCreateFileA)
+		ok &= install_hook(g_pCreateFileA, reinterpret_cast<void *>(&hooked_CreateFileA),
+						   reinterpret_cast<void **>(&g_orig_CreateFileA), "CreateFileA");
+	if (g_pCreateFileW)
+		ok &= install_hook(g_pCreateFileW, reinterpret_cast<void *>(&hooked_CreateFileW),
+						   reinterpret_cast<void **>(&g_orig_CreateFileW), "CreateFileW");
 
 	spdlog::debug("[file_hook] hooks installed (passthrough until configured)");
 	return ok;
@@ -287,5 +347,7 @@ void file_hook_shutdown() {
 	if (g_pwfopen) MH_DisableHook(g_pwfopen);
 	if (g_pwfopen_s) MH_DisableHook(g_pwfopen_s);
 	if (g_pfopen) MH_DisableHook(g_pfopen);
+	if (g_pCreateFileA) MH_DisableHook(g_pCreateFileA);
+	if (g_pCreateFileW) MH_DisableHook(g_pCreateFileW);
 	g_loader = nullptr;
 }
