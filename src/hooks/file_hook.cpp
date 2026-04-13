@@ -1,5 +1,3 @@
-// TODO: There is probably a better way of handling this logic and simplifying this file
-
 #include "file_hook.h"
 
 #include <spdlog/spdlog.h>
@@ -29,7 +27,6 @@ void file_hook_on_game_ready(file_hook_game_ready_cb callback) {
 	g_ready_cb = callback;
 }
 
-// TODO: Find a better detection method for earlier loading of mods
 static void check_loaded(const std::string &rel) {
 	if (g_ready_fired.load(std::memory_order_acquire) || !g_ready_cb) return;
 	if (g_ready_pending.load(std::memory_order_acquire)) {
@@ -40,16 +37,25 @@ static void check_loaded(const std::string &rel) {
 		return;
 	}
 	if (rel.find("gfx/menu/bbb_logo_loading_screen.") != std::string::npos) {
-		spdlog::debug("[file_hook] loading screen texture detected");
+		spdlog::debug("[file_hook] loading screen texture detected, arming game-ready trigger");
 		g_ready_pending.store(true, std::memory_order_release);
 	}
 }
 
+typedef FILE *(__cdecl *fopen_t)(const char *, const char *);
+typedef FILE *(__cdecl *wfopen_t)(const wchar_t *, const wchar_t *);
+typedef int(__cdecl *wfopen_s_t)(FILE **, const wchar_t *, const wchar_t *);
 typedef HANDLE(WINAPI *CreateFileA_t)(LPCSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, DWORD, HANDLE);
 typedef HANDLE(WINAPI *CreateFileW_t)(LPCWSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, DWORD, HANDLE);
 
+static fopen_t g_orig_fopen = nullptr;
+static wfopen_t g_orig_wfopen = nullptr;
+static wfopen_s_t g_orig_wfopen_s = nullptr;
 static CreateFileA_t g_orig_CreateFileA = nullptr;
 static CreateFileW_t g_orig_CreateFileW = nullptr;
+static void *g_pfopen = nullptr;
+static void *g_pwfopen = nullptr;
+static void *g_pwfopen_s = nullptr;
 static void *g_pCreateFileA = nullptr;
 static void *g_pCreateFileW = nullptr;
 
@@ -160,6 +166,43 @@ static const std::string *find_override_a(const std::string &abs) {
 	return nullptr;
 }
 
+static FILE *__cdecl hooked_wfopen(const wchar_t *filename, const wchar_t *mode) {
+	if (filename && g_configured) {
+		std::wstring abs = resolve_w(filename);
+		const std::string *replacement = find_override_w(abs);
+		if (replacement) {
+			spdlog::debug("[file_hook] override: {} -> {}", wide_to_utf8(filename), *replacement);
+			std::wstring widePath = utf8_to_wide(*replacement);
+			return g_orig_wfopen(widePath.c_str(), mode);
+		}
+	}
+	if (filename) spdlog::trace("[file_hook] _wfopen: {}", wide_to_utf8(filename));
+	return g_orig_wfopen(filename, mode);
+}
+
+static int __cdecl hooked_wfopen_s(FILE **pFile, const wchar_t *filename, const wchar_t *mode) {
+	if (filename && g_configured) {
+		std::wstring abs = resolve_w(filename);
+		const std::string *replacement = find_override_w(abs);
+		if (replacement) {
+			std::wstring widePath = utf8_to_wide(*replacement);
+			return g_orig_wfopen_s(pFile, widePath.c_str(), mode);
+		}
+	}
+	if (filename) spdlog::trace("[file_hook] _wfopen_s: {}", wide_to_utf8(filename));
+	return g_orig_wfopen_s(pFile, filename, mode);
+}
+
+static FILE *__cdecl hooked_fopen(const char *filename, const char *mode) {
+	if (filename && g_configured) {
+		std::string abs = resolve_a(filename);
+		const std::string *replacement = find_override_a(abs);
+		if (replacement) return g_orig_fopen(replacement->c_str(), mode);
+	}
+	if (filename) spdlog::trace("[file_hook] fopen: {}", filename);
+	return g_orig_fopen(filename, mode);
+}
+
 static HANDLE WINAPI hooked_CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
 										LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition,
 										DWORD dwFlagsAndAttributes, HANDLE hTemplateFile) {
@@ -170,9 +213,11 @@ static HANDLE WINAPI hooked_CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAcces
 	std::wstring abs = resolve_w(lpFileName);
 	const std::string *replacement = find_override_w(abs);
 
-	if (!replacement)
+	if (!replacement) {
+		// spdlog::trace("[file_hook] CreateFileW: {}", wide_to_utf8(lpFileName));
 		return g_orig_CreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition,
 								  dwFlagsAndAttributes, hTemplateFile);
+	}
 
 	spdlog::debug("[file_hook] override: {} -> {}", wide_to_utf8(lpFileName), *replacement);
 	std::wstring widePath = utf8_to_wide(*replacement);
@@ -190,13 +235,27 @@ static HANDLE WINAPI hooked_CreateFileA(LPCSTR lpFileName, DWORD dwDesiredAccess
 	std::string abs = resolve_a(lpFileName);
 	const std::string *replacement = find_override_a(abs);
 
-	if (!replacement)
+	if (!replacement) {
+		// spdlog::trace("[file_hook] CreateFileA: {}", lpFileName);
 		return g_orig_CreateFileA(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition,
 								  dwFlagsAndAttributes, hTemplateFile);
+	}
 
 	spdlog::debug("[file_hook] override: {} -> {}", lpFileName, *replacement);
 	return g_orig_CreateFileA(replacement->c_str(), dwDesiredAccess, dwShareMode, lpSecurityAttributes,
 							  dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+}
+
+static void *resolve_from(const char *mod, const char *func) {
+	HMODULE h = GetModuleHandleA(mod);
+	return h ? reinterpret_cast<void *>(GetProcAddress(h, func)) : nullptr;
+}
+
+static void *resolve_crt(const char *func) {
+	void *addr = resolve_from("ucrtbase.dll", func);
+	if (!addr) addr = resolve_from("api-ms-win-crt-stdio-l1-1-0.dll", func);
+	if (!addr) addr = resolve_from("msvcrt.dll", func);
+	return addr;
 }
 
 static bool install_hook(void *target, void *detour, void **original, const char *name) {
@@ -218,18 +277,25 @@ static bool install_hook(void *target, void *detour, void **original, const char
 }
 
 bool file_hook_install() {
-	HMODULE hKernel = GetModuleHandleA("kernel32.dll");
-	if (!hKernel) {
-		spdlog::error("[file_hook] kernel32.dll not found");
-		return false;
-	}
+	g_pfopen = resolve_crt("fopen");
+	g_pwfopen = resolve_crt("_wfopen");
+	g_pwfopen_s = resolve_crt("_wfopen_s");
+	g_pCreateFileA = resolve_from("kernel32.dll", "CreateFileA");
+	g_pCreateFileW = resolve_from("kernel32.dll", "CreateFileW");
 
-	g_pCreateFileA = reinterpret_cast<void *>(GetProcAddress(hKernel, "CreateFileA"));
-	g_pCreateFileW = reinterpret_cast<void *>(GetProcAddress(hKernel, "CreateFileW"));
-
+	spdlog::debug("[file_hook] resolved fopen={}, _wfopen={}, _wfopen_s={}", g_pfopen, g_pwfopen, g_pwfopen_s);
 	spdlog::debug("[file_hook] resolved CreateFileA={}, CreateFileW={}", g_pCreateFileA, g_pCreateFileW);
 
 	bool ok = true;
+	if (g_pwfopen)
+		ok &= install_hook(g_pwfopen, reinterpret_cast<void *>(&hooked_wfopen),
+						   reinterpret_cast<void **>(&g_orig_wfopen), "_wfopen");
+	if (g_pwfopen_s)
+		ok &= install_hook(g_pwfopen_s, reinterpret_cast<void *>(&hooked_wfopen_s),
+						   reinterpret_cast<void **>(&g_orig_wfopen_s), "_wfopen_s");
+	if (g_pfopen)
+		ok &= install_hook(g_pfopen, reinterpret_cast<void *>(&hooked_fopen), reinterpret_cast<void **>(&g_orig_fopen),
+						   "fopen");
 	if (g_pCreateFileA)
 		ok &= install_hook(g_pCreateFileA, reinterpret_cast<void *>(&hooked_CreateFileA),
 						   reinterpret_cast<void **>(&g_orig_CreateFileA), "CreateFileA");
@@ -276,6 +342,9 @@ void file_hook_configure(const ModLoader *loader, const fs::path &dllDir) {
 
 void file_hook_shutdown() {
 	g_configured = false;
+	if (g_pwfopen) MH_DisableHook(g_pwfopen);
+	if (g_pwfopen_s) MH_DisableHook(g_pwfopen_s);
+	if (g_pfopen) MH_DisableHook(g_pfopen);
 	if (g_pCreateFileA) MH_DisableHook(g_pCreateFileA);
 	if (g_pCreateFileW) MH_DisableHook(g_pCreateFileW);
 	g_loader = nullptr;
