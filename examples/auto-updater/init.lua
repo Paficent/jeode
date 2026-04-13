@@ -28,7 +28,7 @@ for _, src in ipairs(sources) do
     end
 
     -- loads lua scripts via require
-    if (not src:sub(-4)) == ".lua" then return end
+    if src:sub(-4) ~= ".lua" then return end
     local script = src:gsub("%.lua$", "")
     local ok, result = pcall(require, script)
 
