@@ -1,6 +1,7 @@
 #include "jeode.h"
 #include "../../core/version.h"
 #include "../../loader/mod_loader.h"
+#include "../../lua/game_lua.h"
 #include "../api.h"
 #include "../environment.h"
 #include "file.h"
@@ -19,30 +20,35 @@ namespace fs = std::filesystem;
 
 static const ModLoader *s_loader = nullptr;
 
-static int l_set_context(lua_State *L) {
+static int l_run_as_mod(lua_State *L) {
 	const char *id = luaL_checkstring(L, 1);
+	luaL_checktype(L, 2, LUA_TFUNCTION);
 
-	if (!s_loader) return luaL_error(L, "jeode.setContext: loader not available");
+	if (!s_loader) return luaL_error(L, "jeode.runAsMod: loader not available");
 
 	auto mod = s_loader->getModById(id);
-	if (!mod) {
-		lua_pushboolean(L, 0);
-		return 1;
-	}
+	if (!mod) return luaL_error(L, "jeode.runAsMod: unknown mod '%s'", id);
+
+	std::string prev_id = get_environment().mod_id();
+	std::string prev_root = get_environment().mod_root();
 
 	std::string root = "mods/" + mod->getPath().filename().string();
-
 	get_environment().set_mod_context(mod->getId(), root);
 	file_api_set_mod_root(root.c_str());
 
-	lua_pushboolean(L, 1);
-	return 1;
-}
+	lua_pushvalue(L, 2);
+	int status = game_lua_pcall(L, 0, 0, 0);
 
-static int l_clear_context(lua_State *L) {
-	(void)L;
-	get_environment().clear_mod_context();
-	file_api_clear_mod_root();
+	if (prev_id.empty()) {
+		get_environment().clear_mod_context();
+		file_api_clear_mod_root();
+	} else {
+		get_environment().set_mod_context(prev_id, prev_root);
+		file_api_set_mod_root(prev_root.c_str());
+	}
+
+	if (status != 0) return lua_error(L);
+
 	return 0;
 }
 
@@ -116,8 +122,8 @@ void jeode_api_init(const ModLoader *loader) {
 }
 
 static const LuaApiFunction JEODE_FUNCTIONS[] = {
-	{"setContext", l_set_context}, {"clearContext", l_clear_context}, {"registerGlobal", l_register_global},
-	{"getVersion", l_get_version}, {"getMods", l_get_mods},			  {"getModInfo", l_get_mod_info},
+	{"runAsMod", l_run_as_mod}, {"registerGlobal", l_register_global}, {"getVersion", l_get_version},
+	{"getMods", l_get_mods},	{"getModInfo", l_get_mod_info},
 };
 
 static const LuaApiTable JEODE_TABLE = {
