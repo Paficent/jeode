@@ -252,8 +252,12 @@ static int l_console_read_line(lua_State *L) {
 }
 
 static const LuaApiFunction CONSOLE_FUNCTIONS[] = {
-	{"showWindow", l_console_show}, {"hideWindow", l_console_hide},		 {"setTitle", l_console_set_title},
-	{"write", l_console_write},		{"writeLine", l_console_write_line}, {"clear", l_console_clear},
+	{"show", l_console_show},
+	{"hide", l_console_hide},
+	{"setTitle", l_console_set_title},
+	{"write", l_console_write},
+	{"writeLine", l_console_write_line},
+	{"clear", l_console_clear},
 	{"read", l_console_read_line},
 };
 
