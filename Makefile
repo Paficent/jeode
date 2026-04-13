@@ -1,4 +1,4 @@
-# TODO: switch to cmake
+# TODO: switch to cmake, this sucks
 CC  := i686-w64-mingw32-gcc
 CXX := i686-w64-mingw32-g++
 
@@ -26,7 +26,7 @@ LDFLAGS  := -shared -static -static-libgcc -static-libstdc++ \
 PROXY_LDFLAGS  := $(LDFLAGS)
 PROXY_LIBS     := -lwinhttp -lwininet -lbcrypt -lversion
 LOADER_LDFLAGS := $(LDFLAGS)
-LOADER_LIBS    := -ldwmapi -lgdi32 -limm32
+LOADER_LIBS    := -ldwmapi -lgdi32 -limm32 -lwinhttp
 
 INCLUDES := \
     -Isrc \
@@ -65,6 +65,7 @@ LOADER_CPP_SRCS := \
     src/env/api/file.cpp \
     src/env/api/mod.cpp \
     src/env/api/jeode.cpp \
+    src/env/api/net.cpp \
     src/lua/game_lua.cpp \
     src/lua/thread.cpp \
     src/core/overlay.cpp \
