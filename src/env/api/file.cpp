@@ -24,13 +24,13 @@ static std::string s_game_dir;
 static std::string s_canon_root;
 static std::string s_mod_root;
 
-static const char *BAD_EXTENSIONS[] = {
-	".exe", ".com",	 ".bat",  ".cmd",  ".vbs", ".vbe", ".js",	".jse",	 ".wsf",	".wsh",
-	".ps1", ".psm1", ".psd1", ".psh1", ".msc", ".msh", ".msh1", ".msh2", ".mshxml",
-};
+static const char *BAD_EXTENSIONS[] = {".exe",	  ".com", ".bat",  ".cmd",	".vbs",	 ".vbe", ".js",	 ".jse",  ".wsf",
+									   ".wsh",	  ".ps1", ".psm1", ".psd1", ".psh1", ".msc", ".msh", ".msh1", ".msh2",
+									   ".mshxml", ".dll", ".sys",  ".scr",	".cpl",	 ".inf", ".reg"};
 
 static bool is_malicious(const std::string &path) {
-	if (path.find("../") != std::string::npos || path.find("..\\") != std::string::npos) return true;
+	if (path.find("../") != std::string::npos || path.find("..\\") != std::string::npos)
+		return true; // This is redundant
 
 	for (const auto &ext : BAD_EXTENSIONS) {
 		size_t elen = strlen(ext);
