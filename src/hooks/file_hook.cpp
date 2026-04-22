@@ -13,16 +13,18 @@
 namespace fs = std::filesystem;
 
 static const ModLoader *g_loader = nullptr;
-static std::wstring g_dataBaseW;
-static std::wstring g_datBaseW;
-static std::string g_dataBaseA;
-static std::string g_datBaseA;
 static std::atomic<bool> g_configured{false};
+
+static std::string g_dataBaseA, g_datBaseA;
+static std::wstring g_dataBaseW, g_datBaseW;
 
 static file_hook_game_ready_cb g_ready_cb = nullptr;
 static std::atomic<bool> g_ready_fired{false};
 static std::atomic<bool> g_ready_pending{false};
 
+using OverrideMap = std::unordered_map<std::string, std::string>;
+
+// TODO: this probably isn't neccesary, might be useful to have it as a Lua CB function?
 void file_hook_on_game_ready(file_hook_game_ready_cb callback) {
 	g_ready_cb = callback;
 }
@@ -53,26 +55,14 @@ static wfopen_t g_orig_wfopen = nullptr;
 static wfopen_s_t g_orig_wfopen_s = nullptr;
 static CreateFileA_t g_orig_CreateFileA = nullptr;
 static CreateFileW_t g_orig_CreateFileW = nullptr;
+
 static void *g_pfopen = nullptr;
 static void *g_pwfopen = nullptr;
 static void *g_pwfopen_s = nullptr;
 static void *g_pCreateFileA = nullptr;
 static void *g_pCreateFileW = nullptr;
 
-static std::wstring normalize_path(const std::wstring &path) {
-	std::wstring out = path;
-	std::replace(out.begin(), out.end(), L'/', L'\\');
-	for (auto &c : out) c = towlower(c);
-	return out;
-}
-
-static std::string normalize_path_a(const std::string &path) {
-	std::string out = path;
-	std::replace(out.begin(), out.end(), '/', '\\');
-	for (auto &c : out) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
-	return out;
-}
-
+// TODO: abstract these into a util file
 static std::string wide_to_utf8(const wchar_t *wide) {
 	int len = WideCharToMultiByte(CP_UTF8, 0, wide, -1, nullptr, 0, nullptr, nullptr);
 	if (len <= 0) return {};
@@ -89,161 +79,134 @@ static std::wstring utf8_to_wide(const std::string &utf8) {
 	return out;
 }
 
-static std::string extract_relative_w(const std::wstring &norm, const std::wstring &base) {
+// trait-like system probably isn't neccesary but I've been spending too much time w/ Rust
+template <typename CharT> struct PathUtils;
+
+// narrow & ansi
+template <> struct PathUtils<char> {
+	static constexpr char sep = '\\', sep2 = '/';
+	static const std::string &data_base() { return g_dataBaseA; }
+	static const std::string &dat_base() { return g_datBaseA; }
+
+	static std::string to_utf8(const std::string &s) { return s; }
+	static std::string from_utf8(const std::string &s) { return s; }
+
+	static char lower(char c) { return static_cast<char>(tolower(static_cast<unsigned char>(c))); } // awful
+};
+
+// wide & unicode
+template <> struct PathUtils<wchar_t> {
+	static constexpr wchar_t sep = L'\\', sep2 = L'/';
+	static const std::wstring &data_base() { return g_dataBaseW; }
+	static const std::wstring &dat_base() { return g_datBaseW; }
+
+	static std::string to_utf8(const std::wstring &s) { return wide_to_utf8(s.c_str()); }
+	static std::wstring from_utf8(const std::string &s) { return utf8_to_wide(s); }
+
+	static wchar_t lower(wchar_t c) { return towlower(c); } // I might have to std-ify this
+};
+
+// TODO: fine for now but Windows specific
+template <typename CharT> static std::basic_string<CharT> normalize(const std::basic_string<CharT> &path) {
+	using T = PathUtils<CharT>;
+	std::basic_string<CharT> out = path;
+	std::replace(out.begin(), out.end(), T::sep2, T::sep);
+	for (auto &c : out) c = T::lower(c);
+	return out;
+}
+
+template <typename CharT> static std::basic_string<CharT> resolve(const CharT *path) {
+	if (!path || path[0] == CharT{}) return {};
+
+	std::error_code ec;
+	auto abs = fs::absolute(fs::path(path), ec);
+
+	if constexpr (std::is_same_v<CharT, wchar_t>) {
+		return normalize<CharT>(ec ? std::wstring(path) : abs.wstring());
+	} else {
+		return normalize<CharT>(ec ? std::string(path) : abs.string());
+	} // who knew cpp could ignore dead branches
+}
+
+template <typename CharT>
+static std::string utf8_relative(const std::basic_string<CharT> &norm, const std::basic_string<CharT> &base) {
 	if (norm.size() <= base.size()) return {};
-	std::wstring rel = norm.substr(base.size());
-	std::string utf8 = wide_to_utf8(rel.c_str());
+	auto rel = norm.substr(base.size());
+	std::string utf8 = PathUtils<CharT>::to_utf8(rel);
 	std::replace(utf8.begin(), utf8.end(), '\\', '/');
 	return utf8;
 }
 
-static std::string extract_relative_a(const std::string &norm, const std::string &base) {
-	if (norm.size() <= base.size()) return {};
-	std::string rel = norm.substr(base.size());
-	std::replace(rel.begin(), rel.end(), '\\', '/');
-	return rel;
+template <typename CharT>
+static const std::string *match_override(const std::basic_string<CharT> &abs, const std::basic_string<CharT> &base,
+										 const OverrideMap &overrides, bool notify) {
+	if (base.empty() || abs.compare(0, base.size(), base) != 0) return nullptr;
+
+	std::string rel = utf8_relative(abs, base);
+	if (rel.empty()) return nullptr;
+	if (notify) check_loaded(rel);
+
+	auto found = overrides.find(rel);
+	return (found != overrides.end()) ? &found->second : nullptr;
 }
 
-static std::wstring resolve_w(const wchar_t *path) {
-	if (!path || path[0] == L'\0') return {};
-	std::error_code ec;
-	auto abs = fs::absolute(fs::path(path), ec);
-	if (ec) return normalize_path(path);
-	return normalize_path(abs.wstring());
-}
-
-static std::string resolve_a(const char *path) {
-	if (!path || path[0] == '\0') return {};
-	std::error_code ec;
-	auto abs = fs::absolute(fs::path(path), ec);
-	if (ec) return normalize_path_a(path);
-	return normalize_path_a(abs.string());
-}
-
-static const std::string *find_override_w(const std::wstring &abs) {
+template <typename CharT> static const std::string *find_override(const std::basic_string<CharT> &abs) {
+	using T = PathUtils<CharT>;
 	if (!g_loader || !g_configured) return nullptr;
 
-	if (!g_dataBaseW.empty() && abs.compare(0, g_dataBaseW.size(), g_dataBaseW) == 0) {
-		std::string rel = extract_relative_w(abs, g_dataBaseW);
-		if (rel.empty()) return nullptr;
-		check_loaded(rel);
-		auto &m = g_loader->getAllOverrides();
-		auto it = m.find(rel);
-		return (it != m.end()) ? &it->second : nullptr;
-	}
-
-	if (!g_datBaseW.empty() && abs.compare(0, g_datBaseW.size(), g_datBaseW) == 0) {
-		std::string rel = extract_relative_w(abs, g_datBaseW);
-		if (rel.empty()) return nullptr;
-		auto &m = g_loader->getAllDatOverrides();
-		auto it = m.find(rel);
-		return (it != m.end()) ? &it->second : nullptr;
-	}
+	if (auto *r = match_override(abs, T::data_base(), g_loader->getAllOverrides(), true)) return r;
+	if (auto *r = match_override(abs, T::dat_base(), g_loader->getAllDatOverrides(), false)) return r;
 
 	return nullptr;
 }
 
-static const std::string *find_override_a(const std::string &abs) {
-	if (!g_loader || !g_configured) return nullptr;
+template <typename CharT> static std::optional<std::basic_string<CharT>> attempt_redirect(const CharT *filename) {
+	if (!filename || !g_configured) return std::nullopt;
 
-	if (!g_dataBaseA.empty() && abs.compare(0, g_dataBaseA.size(), g_dataBaseA) == 0) {
-		std::string rel = extract_relative_a(abs, g_dataBaseA);
-		if (rel.empty()) return nullptr;
-		check_loaded(rel);
-		auto &m = g_loader->getAllOverrides();
-		auto it = m.find(rel);
-		return (it != m.end()) ? &it->second : nullptr;
-	}
+	auto abs = resolve(filename);
+	const std::string *replacement = find_override(abs);
+	if (!replacement) return std::nullopt;
 
-	if (!g_datBaseA.empty() && abs.compare(0, g_datBaseA.size(), g_datBaseA) == 0) {
-		std::string rel = extract_relative_a(abs, g_datBaseA);
-		if (rel.empty()) return nullptr;
-		auto &m = g_loader->getAllDatOverrides();
-		auto it = m.find(rel);
-		return (it != m.end()) ? &it->second : nullptr;
-	}
+	spdlog::debug("[file_hook] override: {} -> {}", PathUtils<CharT>::to_utf8(std::basic_string<CharT>(filename)),
+				  *replacement);
 
-	return nullptr;
+	return PathUtils<CharT>::from_utf8(*replacement);
 }
 
+// actual cool stuff below
 static FILE *__cdecl hooked_wfopen(const wchar_t *filename, const wchar_t *mode) {
-	if (filename && g_configured) {
-		std::wstring abs = resolve_w(filename);
-		const std::string *replacement = find_override_w(abs);
-		if (replacement) {
-			spdlog::debug("[file_hook] override: {} -> {}", wide_to_utf8(filename), *replacement);
-			std::wstring widePath = utf8_to_wide(*replacement);
-			return g_orig_wfopen(widePath.c_str(), mode);
-		}
-	}
-	if (filename) spdlog::trace("[file_hook] _wfopen: {}", wide_to_utf8(filename));
+	if (auto redir = attempt_redirect(filename)) return g_orig_wfopen(redir->c_str(), mode);
 	return g_orig_wfopen(filename, mode);
 }
 
 static int __cdecl hooked_wfopen_s(FILE **pFile, const wchar_t *filename, const wchar_t *mode) {
-	if (filename && g_configured) {
-		std::wstring abs = resolve_w(filename);
-		const std::string *replacement = find_override_w(abs);
-		if (replacement) {
-			std::wstring widePath = utf8_to_wide(*replacement);
-			return g_orig_wfopen_s(pFile, widePath.c_str(), mode);
-		}
-	}
-	if (filename) spdlog::trace("[file_hook] _wfopen_s: {}", wide_to_utf8(filename));
+	if (auto redir = attempt_redirect(filename)) return g_orig_wfopen_s(pFile, redir->c_str(), mode);
 	return g_orig_wfopen_s(pFile, filename, mode);
 }
 
 static FILE *__cdecl hooked_fopen(const char *filename, const char *mode) {
-	if (filename && g_configured) {
-		std::string abs = resolve_a(filename);
-		const std::string *replacement = find_override_a(abs);
-		if (replacement) return g_orig_fopen(replacement->c_str(), mode);
-	}
-	if (filename) spdlog::trace("[file_hook] fopen: {}", filename);
+	if (auto redir = attempt_redirect(filename)) return g_orig_fopen(redir->c_str(), mode);
 	return g_orig_fopen(filename, mode);
 }
 
 static HANDLE WINAPI hooked_CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
 										LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition,
 										DWORD dwFlagsAndAttributes, HANDLE hTemplateFile) {
-	if (!lpFileName || !g_configured)
-		return g_orig_CreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition,
-								  dwFlagsAndAttributes, hTemplateFile);
-
-	std::wstring abs = resolve_w(lpFileName);
-	const std::string *replacement = find_override_w(abs);
-
-	if (!replacement) {
-		// spdlog::trace("[file_hook] CreateFileW: {}", wide_to_utf8(lpFileName));
-		return g_orig_CreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition,
-								  dwFlagsAndAttributes, hTemplateFile);
-	}
-
-	spdlog::debug("[file_hook] override: {} -> {}", wide_to_utf8(lpFileName), *replacement);
-	std::wstring widePath = utf8_to_wide(*replacement);
-	return g_orig_CreateFileW(widePath.c_str(), dwDesiredAccess, dwShareMode, lpSecurityAttributes,
-							  dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+	if (auto redir = attempt_redirect(lpFileName))
+		return g_orig_CreateFileW(redir->c_str(), dwDesiredAccess, dwShareMode, lpSecurityAttributes,
+								  dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+	return g_orig_CreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition,
+							  dwFlagsAndAttributes, hTemplateFile);
 }
 
 static HANDLE WINAPI hooked_CreateFileA(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
 										LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition,
 										DWORD dwFlagsAndAttributes, HANDLE hTemplateFile) {
-	if (!lpFileName || !g_configured)
-		return g_orig_CreateFileA(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition,
-								  dwFlagsAndAttributes, hTemplateFile);
-
-	std::string abs = resolve_a(lpFileName);
-	const std::string *replacement = find_override_a(abs);
-
-	if (!replacement) {
-		// spdlog::trace("[file_hook] CreateFileA: {}", lpFileName);
-		return g_orig_CreateFileA(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition,
-								  dwFlagsAndAttributes, hTemplateFile);
-	}
-
-	spdlog::debug("[file_hook] override: {} -> {}", lpFileName, *replacement);
-	return g_orig_CreateFileA(replacement->c_str(), dwDesiredAccess, dwShareMode, lpSecurityAttributes,
-							  dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+	if (auto redir = attempt_redirect(lpFileName))
+		return g_orig_CreateFileA(redir->c_str(), dwDesiredAccess, dwShareMode, lpSecurityAttributes,
+								  dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+	return g_orig_CreateFileA(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition,
+							  dwFlagsAndAttributes, hTemplateFile);
 }
 
 static void *resolve_from(const char *mod, const char *func) {
@@ -324,12 +287,12 @@ void file_hook_configure(const ModLoader *loader, const fs::path &dllDir) {
 	g_loader = loader;
 
 	std::wstring dataDir = (dllDir / "data").wstring() + L"\\";
-	g_dataBaseW = normalize_path(dataDir);
+	g_dataBaseW = normalize(dataDir);
 	g_dataBaseA = wide_to_utf8(g_dataBaseW.c_str());
 
 	std::wstring datDir = build_dat_base_path();
 	if (datDir.empty()) spdlog::warn("[file_hook] could not resolve LocalLow save data path");
-	g_datBaseW = normalize_path(datDir);
+	g_datBaseW = normalize(datDir);
 	g_datBaseA = wide_to_utf8(g_datBaseW.c_str());
 
 	spdlog::debug("[file_hook] data base: '{}'", g_dataBaseA);
