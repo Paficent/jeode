@@ -18,7 +18,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y mingw-w64 nsis
 
       - name: Build for production
-        run: bash scripts/build.sh ${{ github.ref_name }}
+        run: bash ./build.sh ${{ github.ref_name }}
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -26,6 +26,6 @@ jobs:
           name: jeode ${{ github.ref_name }}
           draft: true
           files: |
-            jeode-installer.exe
+            build/jeode-installer.exe
             build/winhttp.dll
             build/jeode/libjeode.dll

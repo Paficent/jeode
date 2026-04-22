@@ -2,14 +2,14 @@
 !include "LogicLib.nsh"
 !include "WordFunc.nsh"
 
-Name "jeode ${JEODE_VERSION}"
+Name "jeode @JEODE_VERSION@"
 OutFile "jeode-installer.exe"
 Unicode True
 InstallDir ""
 RequestExecutionLevel user
 ShowInstDetails show
 
-!define MUI_ICON ".\assets\jeode.ico"
+!define MUI_ICON "..\cmake\jeode.ico"
 !define MUI_ABORTWARNING
 
 !insertmacro MUI_PAGE_WELCOME
@@ -121,9 +121,9 @@ FunctionEnd
 Section "jeode" SecMain
     SectionIn RO
     SetOutPath "$INSTDIR"
-    File "${BUILD_DIR}\winhttp.dll"
+    File "@CMAKE_BINARY_DIR@\winhttp.dll"
     SetOutPath "$INSTDIR\jeode"
-    File "${BUILD_DIR}\jeode\libjeode.dll"
+    File "@CMAKE_BINARY_DIR@\jeode\libjeode.dll"
 
     IfFileExists "$INSTDIR\mods\*.*" +2 0
         CreateDirectory "$INSTDIR\mods"

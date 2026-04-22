@@ -36,7 +36,7 @@ static DWORD WINAPI proxy_init_thread(LPVOID) {
 	fs::path jeodeDir = gameDir / "jeode";
 	JeodeConfig cfg = config_load(jeodeDir);
 
-	if (std::string(JEODE_VERSION) != "dev") updater_run(cfg, gameDir);
+	if (std::string(JEODE_VERSION) != "0.0.0.0") updater_run(cfg, gameDir); // dev
 
 	launch_libjeode(cfg, gameDir);
 	return 0;

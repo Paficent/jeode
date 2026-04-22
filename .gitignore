@@ -1,5 +1,3 @@
-include/
 build/
 .DS_Store
-jeode-installer.exe
 examples/*/*.dll
