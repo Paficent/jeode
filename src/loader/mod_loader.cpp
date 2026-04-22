@@ -71,10 +71,10 @@ std::shared_ptr<Mod> ModLoader::getModById(const std::string &id) const {
 const std::vector<std::shared_ptr<Mod>> &ModLoader::getAllMods() const {
 	return mods;
 }
-const std::unordered_map<std::string, std::string> &ModLoader::getAllOverrides() const {
+const OverrideMap &ModLoader::getAllOverrides() const {
 	return allOverrides;
 }
-const std::unordered_map<std::string, std::string> &ModLoader::getAllDatOverrides() const {
+const OverrideMap &ModLoader::getAllDatOverrides() const {
 	return allDatOverrides;
 }
 

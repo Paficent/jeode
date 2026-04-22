@@ -22,8 +22,6 @@ static file_hook_game_ready_cb g_ready_cb = nullptr;
 static std::atomic<bool> g_ready_fired{false};
 static std::atomic<bool> g_ready_pending{false};
 
-using OverrideMap = std::unordered_map<std::string, std::string>;
-
 // TODO: this probably isn't neccesary, might be useful to have it as a Lua CB function?
 void file_hook_on_game_ready(file_hook_game_ready_cb callback) {
 	g_ready_cb = callback;
