@@ -249,24 +249,19 @@ bool file_hook_install() {
 	spdlog::debug("[file_hook] resolved fopen={}, _wfopen={}, _wfopen_s={}", g_pfopen, g_pwfopen, g_pwfopen_s);
 	spdlog::debug("[file_hook] resolved CreateFileA={}, CreateFileW={}", g_pCreateFileA, g_pCreateFileW);
 
+	// TODO: reuse this pattern elsewhere
 	bool ok = true;
-	if (g_pwfopen)
-		ok &= install_hook(g_pwfopen, reinterpret_cast<void *>(&hooked_wfopen),
-						   reinterpret_cast<void **>(&g_orig_wfopen), "_wfopen");
-	if (g_pwfopen_s)
-		ok &= install_hook(g_pwfopen_s, reinterpret_cast<void *>(&hooked_wfopen_s),
-						   reinterpret_cast<void **>(&g_orig_wfopen_s), "_wfopen_s");
-	if (g_pfopen)
-		ok &= install_hook(g_pfopen, reinterpret_cast<void *>(&hooked_fopen), reinterpret_cast<void **>(&g_orig_fopen),
-						   "fopen");
-	if (g_pCreateFileA)
-		ok &= install_hook(g_pCreateFileA, reinterpret_cast<void *>(&hooked_CreateFileA),
-						   reinterpret_cast<void **>(&g_orig_CreateFileA), "CreateFileA");
-	if (g_pCreateFileW)
-		ok &= install_hook(g_pCreateFileW, reinterpret_cast<void *>(&hooked_CreateFileW),
-						   reinterpret_cast<void **>(&g_orig_CreateFileW), "CreateFileW");
+	auto hook = [&](void *target, void *detour, void **original, const char *name) {
+		if (target) ok &= install_hook(target, detour, original, name);
+	};
 
-	spdlog::debug("[file_hook] hooks installed (passthrough until configured)");
+	hook(g_pwfopen, (void *)&hooked_wfopen, (void **)&g_orig_wfopen, "_wfopen");
+	hook(g_pwfopen_s, (void *)&hooked_wfopen_s, (void **)&g_orig_wfopen_s, "_wfopen_s");
+	hook(g_pfopen, (void *)&hooked_fopen, (void **)&g_orig_fopen, "fopen");
+	hook(g_pCreateFileA, (void *)&hooked_CreateFileA, (void **)&g_orig_CreateFileA, "CreateFileA");
+	hook(g_pCreateFileW, (void *)&hooked_CreateFileW, (void **)&g_orig_CreateFileW, "CreateFileW");
+
+	spdlog::debug("[file_hook] hooks installed");
 	return ok;
 }
 
@@ -305,10 +300,8 @@ void file_hook_configure(const ModLoader *loader, const fs::path &dllDir) {
 
 void file_hook_shutdown() {
 	g_configured = false;
-	if (g_pwfopen) MH_DisableHook(g_pwfopen);
-	if (g_pwfopen_s) MH_DisableHook(g_pwfopen_s);
-	if (g_pfopen) MH_DisableHook(g_pfopen);
-	if (g_pCreateFileA) MH_DisableHook(g_pCreateFileA);
-	if (g_pCreateFileW) MH_DisableHook(g_pCreateFileW);
+	for (void *t : {g_pwfopen, g_pwfopen_s, g_pfopen, g_pCreateFileA, g_pCreateFileW}) {
+		if (t) MH_DisableHook(t);
+	}
 	g_loader = nullptr;
 }
