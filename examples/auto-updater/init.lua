@@ -1,5 +1,7 @@
 --[[
-Jeode autoupdating mod example, in theory all you'd need to distribute your mod is this script
+Jeode autoupdating mod example, in theory all you'd need to distribute your mod is this script.
+Do note that this form of distribution is a potential security issue, and is based around the
+trust of the author and the security of their accounts.
 
 - Paficent
 ]]
@@ -17,7 +19,7 @@ end
 
 -- Sources could be defined by Lua (see commented), but if you wanted to add new files later, this is the better solution
 sources = net.jsonDecode(fetch("sources.json"))
--- local sources = {"test.lua", "lib/another.lua", "data/"}
+-- local sources = {"test.lua", "lib/another.lua", "data/notarealasset.txt"}
 
 for _, src in ipairs(sources) do
     local content = fetch(src)
@@ -28,14 +30,15 @@ for _, src in ipairs(sources) do
     end
 
     -- loads lua scripts via require
-    if src:sub(-4) ~= ".lua" then return end
-    local script = src:gsub("%.lua$", "")
-    local ok, result = pcall(require, script)
+    if src:sub(-4) == ".lua" then
+    	local script = src:gsub("%.lua$", "")
+    	local ok, result = pcall(require, script)
 
-    if ok then
-        modules[script] = result
-    else
-        print(string.format("failed to load %s: %s", script, result))
+    	if ok then
+            modules[script] = result
+    	else
+            print(string.format("failed to load %s: %s", script, result))
+    	end
     end
 end
 
