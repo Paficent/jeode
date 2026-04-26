@@ -44,13 +44,13 @@ FetchContent_Declare(spdlog
   GIT_SHALLOW    TRUE)
 
 FetchContent_Declare(lua
-  URL https://www.lua.org/ftp/lua-5.1.5.tar.gz)
+  URL https://www.lua.org/ftp/lua-5.1.4.tar.gz)
 
 FetchContent_MakeAvailable(
   minhook imgui imgui_coloredit nlohmann_json spdlog lua)
 
 
-# Lua 5.1.5 - no cmake
+# Lua 5.1.4 - no cmake
 file(GLOB LUA_SRCS CONFIGURE_DEPENDS
      ${lua_SOURCE_DIR}/src/*.c)
 list(FILTER LUA_SRCS EXCLUDE REGEX "(lua\\.c|luac\\.c)$") # no interpreter/compiler
