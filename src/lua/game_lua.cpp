@@ -32,17 +32,18 @@ static const LuaFunc FUNC_TABLE[] = {
       "55 8B EC 83 E4 F8 83 EC 34 8B 45 08"
       " 89 44 24 08 8D 44 24 04 89 44 24 2C"
       " 8D 44 24 20 53 56 8B F1",
-      0x00169110, &g_luaL_loadbuffer, 0x55 },
+      0x001C58C0, &g_luaL_loadbuffer, 0x55 },
 
     { "lua_pcall",
       "55 8B EC 83 E4 F8 83 EC 08 56 8B F2"
       " 8B 55 0C 57 8B F9 85 D2 74 0A"
       " E8 ? ? ? ? 8B D0 2B 57 20",
-      0x00165C30, &g_lua_pcall, 0x55 },
+      0x001C23E0, &g_lua_pcall, 0x55 },
 
+    // Unneccesary?
     { "lua_settop",
       "56 8B F2 C1 E6 04 85 D2 78 ? 8B 51 08 57",
-      0x001654A0, &g_lua_settop, 0x56 },
+      0x001C1CC0, &g_lua_settop, 0x56 },
 
     { "lua_newthread",
       "56 57 8B F9 8B 57 10 8B 42 44 3B 42 40 72 05"
@@ -60,7 +61,7 @@ static const LuaFunc FUNC_TABLE[] = {
       " 8B 4F 3C 89 4E 3C 8B 47 44 89 46 44 89 4E 40"
       " 8B 47 08 89 30 C7 40 08 08 00 00 00"
       " 8B C6 83 47 08 10 5F 5E C3",
-      0x00166E30, &g_lua_newthread, 0x56 },
+      0x001C1C30, &g_lua_newthread, 0x56 },
 
     { "lua_resume",
       "55 8B EC 53 56 57 8B FA 8B D9 3B DF 75 04 33 F6 EB 3E"
@@ -99,7 +100,7 @@ static const LuaFunc FUNC_TABLE[] = {
       " 83 C4 08 56 8B D3 8B CF"
       " E8 ? ? ? ?"
       " 83 C4 04 8B C6 5F 5E 5B 5D C3",
-      0x001F1EE0, &g_lua_resume, 0x55 },
+      0x001F31C0, &g_lua_resume, 0x55 },
 
     { "lua_yield",
       "55 8B EC 56 8B 75 08 57 8B 7E 08"
@@ -110,7 +111,7 @@ static const LuaFunc FUNC_TABLE[] = {
       " 83 C4 08"
       " 8B 46 08 83 E7 F0 2B C7 C6 46 06 01"
       " 89 46 0C 83 C8 FF 5F 5E 5D C3",
-      0x001F2380, &g_lua_yield, 0x55 },
+      0x001F3660, &g_lua_yield, 0x55 },
 };
 // clang-format on
 

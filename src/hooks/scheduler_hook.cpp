@@ -11,6 +11,8 @@
 #include <mutex>
 #include <vector>
 
+// TODO: This is potentially redudant if instead jeode hooked lua_pcall?
+
 //   55              PUSH EBP
 //   8B EC           MOV EBP, ESP
 //   83 EC ??        SUB ESP, <frame_size>
@@ -46,8 +48,7 @@ static const char PATTERN_SCHEDULER_TICK[] =
     " 5F 5E 5B 8B E5 5D C3"
     " E8 ? ? ? ? 5F 5E 33 C0 5B 8B E5 5D C3";
 // clang-format on
-
-static const uint32_t RVA_SCHEDULER_TICK = 0x0020c190;
+static const uint32_t RVA_SCHEDULER_TICK = 0x00247610; // Offset-Base (X-0x00400000)
 
 typedef int(__fastcall *scheduler_tick_t)(void *thisPtr, void *edx_unused);
 
