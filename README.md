@@ -4,6 +4,7 @@
 [![Codeberg](https://img.shields.io/badge/Codeberg-Mirror-2185D0?logo=codeberg)](https://codeberg.org/Paficent/jeode)
 [![Discord](https://img.shields.io/discord/1477174015926997155?label=Discord&logo=discord&color=5865F2)](https://discord.gg/FSHq6DaRnX)
 [![License](https://img.shields.io/github/license/Paficent/jeode)](https://github.com/Paficent/jeode/blob/main/LICENSE)
+[![KoFi](https://img.shields.io/badge/ko--fi-donate-ff5f5f?logo=ko-fi&style=for-the-badgeKo-fi)](https://ko-fi.com/paficent)
 
 Jeode is a mod loader and framework for the PC version of [My Singing Monsters](https://store.steampowered.com/app/1419170/My_Singing_Monsters/), designed to make loading mods simple and development more powerful.
 
