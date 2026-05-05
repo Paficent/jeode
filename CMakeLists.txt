@@ -1,8 +1,10 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.24)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.10) # ignore dependency warnings
+
 project(jeode LANGUAGES C CXX ASM)
 
 if(NOT DEFINED JEODE_VERSION)
-    set(JEODE_VERSION "0.0.0.0") # dev
+  set(JEODE_VERSION "0.0.0.0") # dev
 endif()
 
 set(CMAKE_C_STANDARD 11)
