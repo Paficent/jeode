@@ -20,36 +20,37 @@ const ModLoader *get_mod_loader() {
 	return g_modLoader.get();
 }
 
-static LONG WINAPI jeode_crash_handler(EXCEPTION_POINTERS *ep) {
-	if (ep && ep->ExceptionRecord) {
-		DWORD code = ep->ExceptionRecord->ExceptionCode;
-		void *addr = ep->ExceptionRecord->ExceptionAddress;
-		spdlog::debug("[exception] code=0x{:08X} at address={}", code, addr);
+// Potentially causing antiviruses to believe jeode uses anti-debuggers?
+// static LONG WINAPI jeode_crash_handler(EXCEPTION_POINTERS *ep) {
+// 	if (ep && ep->ExceptionRecord) {
+// 		DWORD code = ep->ExceptionRecord->ExceptionCode;
+// 		void *addr = ep->ExceptionRecord->ExceptionAddress;
+// 		spdlog::debug("[exception] code=0x{:08X} at address={}", code, addr);
 
-		if (ep->ContextRecord) {
-			auto *ctx = ep->ContextRecord;
-			spdlog::debug("[exception] EAX=0x{:08X} EBX=0x{:08X} ECX=0x{:08X} EDX=0x{:08X}", ctx->Eax, ctx->Ebx,
-						  ctx->Ecx, ctx->Edx);
-			spdlog::debug("[exception] ESI=0x{:08X} EDI=0x{:08X} EBP=0x{:08X} ESP=0x{:08X}", ctx->Esi, ctx->Edi,
-						  ctx->Ebp, ctx->Esp);
-			spdlog::debug("[exception] EIP=0x{:08X}", ctx->Eip);
-		}
+// 		if (ep->ContextRecord) {
+// 			auto *ctx = ep->ContextRecord;
+// 			spdlog::debug("[exception] EAX=0x{:08X} EBX=0x{:08X} ECX=0x{:08X} EDX=0x{:08X}", ctx->Eax, ctx->Ebx,
+// 						  ctx->Ecx, ctx->Edx);
+// 			spdlog::debug("[exception] ESI=0x{:08X} EDI=0x{:08X} EBP=0x{:08X} ESP=0x{:08X}", ctx->Esi, ctx->Edi,
+// 						  ctx->Ebp, ctx->Esp);
+// 			spdlog::debug("[exception] EIP=0x{:08X}", ctx->Eip);
+// 		}
 
-		if (ep->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION &&
-			ep->ExceptionRecord->NumberParameters >= 2) {
-			const char *op = ep->ExceptionRecord->ExceptionInformation[0] == 0 ? "reading" : "writing";
-			spdlog::error("[exception] access violation {} address 0x{:08X}", op,
-						  (unsigned)ep->ExceptionRecord->ExceptionInformation[1]);
-		}
+// 		if (ep->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION &&
+// 			ep->ExceptionRecord->NumberParameters >= 2) {
+// 			const char *op = ep->ExceptionRecord->ExceptionInformation[0] == 0 ? "reading" : "writing";
+// 			spdlog::error("[exception] access violation {} address 0x{:08X}", op,
+// 						  (unsigned)ep->ExceptionRecord->ExceptionInformation[1]);
+// 		}
 
-		spdlog::default_logger()->flush();
-	}
-	return EXCEPTION_CONTINUE_SEARCH;
-}
+// 		spdlog::default_logger()->flush();
+// 	}
+// 	return EXCEPTION_CONTINUE_SEARCH;
+// }
 
 static DWORD WINAPI init_thread(LPVOID) {
 	log_init(g_config.debug);
-	AddVectoredExceptionHandler(1, jeode_crash_handler);
+	// AddVectoredExceptionHandler(1, jeode_crash_handler); // Only use this when making debug builds
 	spdlog::info("[main] jeode initializing (gameDir='{}')", g_gameDir.string());
 
 	overlay_init(g_gameDir / "jeode");
