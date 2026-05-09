@@ -6,12 +6,13 @@
 #include "MinHook.h"
 #include <windows.h>
 
+#include <algorithm>
+#include <atomic>
 #include <deque>
 #include <functional>
 #include <mutex>
+#include <utility>
 #include <vector>
-
-// TODO: This is potentially redudant if instead jeode hooked lua_pcall?
 
 //   55              PUSH EBP
 //   8B EC           MOV EBP, ESP
@@ -58,6 +59,15 @@ static void *g_scheduler_tick_addr = nullptr;
 static std::mutex g_queue_mutex;
 static std::deque<std::function<void()>> g_work_queue;
 
+struct TickCallback {
+	scheduler_tick_id_t id;
+	std::function<void()> fn;
+};
+
+static std::mutex g_tick_mutex;
+static std::vector<TickCallback> g_tick_callbacks;
+static std::atomic<scheduler_tick_id_t> g_next_tick_id{1};
+
 static int __fastcall hooked_scheduler_tick(void *thisPtr, void *edx_unused) {
 	int result = g_orig_scheduler_tick(thisPtr, edx_unused);
 
@@ -65,7 +75,7 @@ static int __fastcall hooked_scheduler_tick(void *thisPtr, void *edx_unused) {
 	{
 		std::lock_guard<std::mutex> lock(g_queue_mutex);
 		if (!g_work_queue.empty()) {
-			spdlog::debug("[sched] draining {} work item(s)", g_work_queue.size());
+			// spdlog::debug("[sched] draining {} work item(s)", g_work_queue.size());
 			batch.assign(std::make_move_iterator(g_work_queue.begin()), std::make_move_iterator(g_work_queue.end()));
 			g_work_queue.clear();
 		}
@@ -80,12 +90,42 @@ static int __fastcall hooked_scheduler_tick(void *thisPtr, void *edx_unused) {
 		}
 	}
 
+	std::vector<std::function<void()>> ticks;
+	{
+		std::lock_guard<std::mutex> lock(g_tick_mutex);
+		ticks.reserve(g_tick_callbacks.size());
+		for (const auto &cb : g_tick_callbacks) ticks.push_back(cb.fn);
+	}
+	for (size_t i = 0; i < ticks.size(); i++) {
+		try {
+			ticks[i]();
+		} catch (const std::exception &e) {
+			spdlog::error("[sched] tick callback {}/{} threw: {}", i + 1, ticks.size(), e.what());
+		} catch (...) {
+			spdlog::error("[sched] tick callback {}/{} threw unknown exception", i + 1, ticks.size());
+		}
+	}
+
 	return result;
 }
 
 void scheduler_queue_work(std::function<void()> work) {
 	std::lock_guard<std::mutex> lock(g_queue_mutex);
 	g_work_queue.push_back(std::move(work));
+}
+
+scheduler_tick_id_t scheduler_register_tick(std::function<void()> tick) {
+	scheduler_tick_id_t id = g_next_tick_id.fetch_add(1);
+	std::lock_guard<std::mutex> lock(g_tick_mutex);
+	g_tick_callbacks.push_back({id, std::move(tick)});
+	return id;
+}
+
+void scheduler_unregister_tick(scheduler_tick_id_t id) {
+	std::lock_guard<std::mutex> lock(g_tick_mutex);
+	g_tick_callbacks.erase(std::remove_if(g_tick_callbacks.begin(), g_tick_callbacks.end(),
+										  [id](const TickCallback &cb) { return cb.id == id; }),
+						   g_tick_callbacks.end());
 }
 
 bool scheduler_hook_install() {

@@ -10,12 +10,18 @@
 #include "backends/imgui_impl_win32.h"
 #include "imgui.h"
 
+#include <algorithm>
+#include <atomic>
+#include <mutex>
+#include <utility>
+#include <vector>
+
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 typedef void *EGLDisplay;
 typedef void *EGLSurface;
 typedef unsigned int EGLBoolean;
-typedef EGLBoolean (*eglSwapBuffers_t)(EGLDisplay, EGLSurface);
+typedef EGLBoolean(__stdcall *eglSwapBuffers_t)(EGLDisplay, EGLSurface);
 
 static eglSwapBuffers_t g_orig_eglSwapBuffers = nullptr;
 static void *g_eglSwapBuffers_addr = nullptr;
@@ -31,6 +37,15 @@ static bool g_capturing_keybind = false;
 static int g_captured_vk = 0;
 static DWORD g_last_toggle_tick = 0;
 static constexpr DWORD TOGGLE_COOLDOWN_MS = 200;
+
+struct FrameCallback {
+	egl_frame_id_t id;
+	std::function<void()> fn;
+};
+
+static std::mutex g_frame_mutex;
+static std::vector<FrameCallback> g_frame_callbacks;
+static std::atomic<egl_frame_id_t> g_next_frame_id{1};
 
 struct FindCtx {
 	DWORD pid;
@@ -124,13 +139,31 @@ static void imgui_frame() {
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-static EGLBoolean hooked_eglSwapBuffers(EGLDisplay dpy, EGLSurface surface) {
+static EGLBoolean __stdcall hooked_eglSwapBuffers(EGLDisplay dpy, EGLSurface surface) {
 	if (g_enabled) {
 		if (!g_initialized) imgui_init();
 		if (g_initialized) imgui_frame();
 	}
 
-	return g_orig_eglSwapBuffers(dpy, surface);
+	EGLBoolean result = g_orig_eglSwapBuffers(dpy, surface);
+
+	std::vector<std::function<void()>> frames;
+	{
+		std::lock_guard<std::mutex> lock(g_frame_mutex);
+		frames.reserve(g_frame_callbacks.size());
+		for (const auto &cb : g_frame_callbacks) frames.push_back(cb.fn);
+	}
+	for (size_t i = 0; i < frames.size(); i++) {
+		try {
+			frames[i]();
+		} catch (const std::exception &e) {
+			spdlog::error("[egl] frame callback {}/{}: {}", i + 1, frames.size(), e.what());
+		} catch (...) {
+			spdlog::error("[egl] frame callback {}/{} unknown exception", i + 1, frames.size());
+		}
+	}
+
+	return result;
 }
 
 void egl_hook_configure(bool overlays_enabled, int toggle_vk) {
@@ -160,6 +193,20 @@ int egl_hook_poll_captured_key() {
 	int vk = g_captured_vk;
 	g_captured_vk = 0;
 	return vk;
+}
+
+egl_frame_id_t egl_hook_register_frame(std::function<void()> fn) {
+	egl_frame_id_t id = g_next_frame_id.fetch_add(1);
+	std::lock_guard<std::mutex> lock(g_frame_mutex);
+	g_frame_callbacks.push_back({id, std::move(fn)});
+	return id;
+}
+
+void egl_hook_unregister_frame(egl_frame_id_t id) {
+	std::lock_guard<std::mutex> lock(g_frame_mutex);
+	g_frame_callbacks.erase(std::remove_if(g_frame_callbacks.begin(), g_frame_callbacks.end(),
+										   [id](const FrameCallback &cb) { return cb.id == id; }),
+							g_frame_callbacks.end());
 }
 
 bool egl_hook_install() {

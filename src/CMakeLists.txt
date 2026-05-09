@@ -41,6 +41,7 @@ add_library(jeode SHARED
     env/api/mod.cpp
     env/api/jeode.cpp
     env/api/net.cpp
+    env/api/task.cpp
     lua/game_lua.cpp
     lua/thread.cpp
     lua/stubs_lua.S
