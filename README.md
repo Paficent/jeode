@@ -13,13 +13,13 @@ Jeode is a mod loader and framework for the PC version of [My Singing Monsters](
 
 ## Installation
 
-### Installer (recommended)
+### Cantus (recommended)
 
-Download `jeode-installer.exe` from the [latest release](https://github.com/Paficent/jeode/releases/latest) and run it. The installer will attempt to locate the My Singing Monsters directory. If it can't find it, you will have to manually locate the folder containing `MySingingMonsters.exe`.
+Download and install Cantus from [GitHub](https://github.com/Paficent/cantus/releases/latest) and run it. Cantus is a mod manager and installer GUI that has a guided onboarding process which includes automatic Jeode installation.
 
 ### Manual Installation
 
-Download `winhttp.dll` and `libjeode.dll` from the [latest release](https://github.com/Paficent/jeode/releases/latest) and place them in the MSM folder like so:
+Alternatively, download `winhttp.dll` and `libjeode.dll` from the [latest release](https://github.com/Paficent/jeode/releases/latest) and place them in the MSM folder like so:
 
 ```
 My Singing Monsters/
@@ -29,7 +29,7 @@ My Singing Monsters/
     └── libjeode.dll
 ```
 
-Note: We use a proxy `winhttp.dll` to have the game load Jeode automatically, which means no clunky DLL injector required.
+Note: We use a proxy `winhttp.dll` to have the game load Jeode automatically.
 
 ### Wine / Proton
 
