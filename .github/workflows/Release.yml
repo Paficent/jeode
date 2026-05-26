@@ -26,6 +26,5 @@ jobs:
           name: jeode ${{ github.ref_name }}
           draft: true
           files: |
-            build/jeode-installer.exe
             build/winhttp.dll
             build/jeode/libjeode.dll
