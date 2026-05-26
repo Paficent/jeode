@@ -151,7 +151,7 @@ static int l_task_spawn(lua_State *L) {
 	return 1;
 }
 
-// task.wait(duration: number): nil
+// task.wait(duration: number): number
 static int l_task_wait(lua_State *L) { // Waits for atleast (!) the amount of time, depends on OS
 	double seconds = 0.0;
 	if (lua_isnumber(L, 1)) seconds = lua_tonumber(L, 1);
