@@ -4,7 +4,9 @@ Jeode is a small project so the process is pretty simple, just open an issue or 
 
 ## Building
 
-You need `i686-w64-mingw32` (MinGW-w64 targeting 32-bit Windows) and standard build tools (`cmake`, `bash`).
+You need `i686-w64-mingw32` (MinGW-w64 targeting 32-bit Windows) usually found from `mingw-w64` on Debian and adjacent distros or `mingw-w64-gcc` on Arch and adjacent distros. You will also need standard build tools (`cmake`, `bash`).
+
+There are currently issues with mingw-w64 version 16+, it may be neccesary to downgrade your packages to version 13
 
 ```sh
 ./build.sh         # Development build

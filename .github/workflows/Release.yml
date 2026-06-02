@@ -25,6 +25,14 @@ jobs:
         with:
           name: jeode ${{ github.ref_name }}
           draft: true
+          body: |
+
+
+            WARNING: If you are using Windows Defender, Avast, AVG, or potentially other AVs the installer may fail to download or be detected as a virus.
+            Jeode is not a virus, although some methods in Jeode may resemble malicious techniques by AV algorithms. To remedy this, you may need to add Jeode, or the My Singing Monsters folder to your exclusions.
+
+            The latest jeode builds can be found below in the assets section:
           files: |
+            build/jeode-installer.exe
             build/winhttp.dll
             build/jeode/libjeode.dll

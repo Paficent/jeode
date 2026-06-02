@@ -8,10 +8,14 @@
 
 Jeode is a mod loader and framework for the PC version of [My Singing Monsters](https://store.steampowered.com/app/1419170/My_Singing_Monsters/), designed to make loading mods simple and development more powerful.
 
-> [!CAUTION]
-> Jeode is currently in its infancy. Bugs and issues are expected and stability is not guaranteed. Reporting these is the best way to help Jeode improve.
-
 ## Installation
+
+> [!IMPORTANT]
+> Some antiviruses (notably Windows Defender, Avast, and AVG) are falsely detecting Jeode as a virus. If you use these antiviruses you may need to add `jeode-installer.exe`, `libjeode.dll`, or the My Singing Monsters directory as an exclusion.
+
+### Installer (recommended)
+
+Download `jeode-installer.exe` from the [latest release](https://github.com/Paficent/jeode/releases/latest) and run it. The installer will attempt to locate the My Singing Monsters directory. If it can't find it, you will have to manually locate the folder containing `MySingingMonsters.exe`.
 
 ### Cantus (recommended)
 
@@ -33,10 +37,19 @@ Note: We use a proxy `winhttp.dll` to have the game load Jeode automatically.
 
 ### Wine / Proton
 
-On Linux or macOS, the game won't load a local `winhttp.dll` unless you tell Wine to prefer it over the builtin version.
+On Linux or macOS, the game won't load a local `winhttp.dll` unless you tell Wine to prefer it over the builtin version. There are several ways to achieve this:
+
+#### Steam
+
+1. Right click on `My Singing Monsters` on the left sidebar of your library
+2. Select `Properties`
+3. Paste `WINEDLLOVERRIDES="winhttp=n,b" %command%` into the `Launch Options` input
+4. Close the Properties window and launch MSM.
+
+#### Other
 
 1. Run the installer in your wine prefix or use the manual method.
-2. Open a terminal and run `winecfg` (or use `protontricks 1419170 winecfg` for Steam/Proton)
+2. Open a terminal and run `winecfg` (or use `protontricks 1419170 winecfg` for Proton)
 3. Go to the **Libraries** tab.
 4. In the **New override for library** field, type `winhttp` and click **Add**.
 5. Select `winhttp` in the list, click **Edit**, and set it to **Native, Builtin**.

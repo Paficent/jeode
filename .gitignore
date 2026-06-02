@@ -3,4 +3,3 @@ build/
 examples/*/*.dll
 *.exe
 *.zip
-debug.sh

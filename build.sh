@@ -6,3 +6,4 @@ cmake -S . -B build \
   -DCMAKE_BUILD_TYPE=MinSizeRel \
   -DJEODE_VERSION="$VERSION"
 cmake --build build -j
+cmake --build build --target installer

@@ -87,3 +87,4 @@ target_include_directories(spdlog_hdr INTERFACE
     ${spdlog_SOURCE_DIR}/include)
 
 add_subdirectory(src)
+include(cmake/package.cmake) # installer
