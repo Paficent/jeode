@@ -42,6 +42,20 @@ add_library(jeode SHARED
     env/api/jeode.cpp
     env/api/net.cpp
     env/api/task.cpp
+    env/api/ui.cpp
+    env/api/ui/window.cpp
+    env/api/ui/child.cpp
+    env/api/ui/text.cpp
+    env/api/ui/button.cpp
+    env/api/ui/checkbox.cpp
+    env/api/ui/input.cpp
+    env/api/ui/slider.cpp
+    env/api/ui/dropdown.cpp
+    env/api/ui/tabs.cpp
+    env/api/ui/layout.cpp
+    env/api/ui/state.cpp
+    env/api/ui/tooltip.cpp
+    env/api/ui/code_editor.cpp
     lua/game_lua.cpp
     lua/thread.cpp
     lua/stubs_lua.S

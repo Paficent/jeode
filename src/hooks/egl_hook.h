@@ -16,3 +16,5 @@ using egl_frame_id_t = int;
 
 egl_frame_id_t egl_hook_register_frame(std::function<void()> fn);
 void egl_hook_unregister_frame(egl_frame_id_t id);
+
+void egl_hook_set_imgui_frame(void (*fn)());

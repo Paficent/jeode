@@ -46,6 +46,7 @@ struct FrameCallback {
 static std::mutex g_frame_mutex;
 static std::vector<FrameCallback> g_frame_callbacks;
 static std::atomic<egl_frame_id_t> g_next_frame_id{1};
+static void (*g_imgui_frame_cb)() = nullptr;
 
 struct FindCtx {
 	DWORD pid;
@@ -135,6 +136,9 @@ static void imgui_frame() {
 		overlay_draw();
 	}
 
+	void (*cb)() = g_imgui_frame_cb;
+	if (cb) cb();
+
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
@@ -207,6 +211,10 @@ void egl_hook_unregister_frame(egl_frame_id_t id) {
 	g_frame_callbacks.erase(std::remove_if(g_frame_callbacks.begin(), g_frame_callbacks.end(),
 										   [id](const FrameCallback &cb) { return cb.id == id; }),
 							g_frame_callbacks.end());
+}
+
+void egl_hook_set_imgui_frame(void (*fn)()) {
+	g_imgui_frame_cb = fn;
 }
 
 bool egl_hook_install() {

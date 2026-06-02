@@ -28,6 +28,10 @@ bool lua_thread_ready() {
 	return g_state.load(std::memory_order_acquire) != nullptr;
 }
 
+bool lua_thread_is_current() {
+	return g_game_thread_id != 0 && GetCurrentThreadId() == g_game_thread_id;
+}
+
 void lua_thread_queue(std::function<void(lua_State *)> work) {
 	scheduler_queue_work([work = std::move(work)]() {
 		lua_State *L = g_state.load(std::memory_order_acquire);

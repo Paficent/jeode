@@ -9,6 +9,7 @@ extern "C" {
 void lua_thread_set_state(lua_State *L);
 lua_State *lua_thread_get_state();
 bool lua_thread_ready();
+bool lua_thread_is_current();
 
 void lua_thread_queue(std::function<void(lua_State *)> work);
 void lua_thread_queue_sync(std::function<void(lua_State *)> work);
