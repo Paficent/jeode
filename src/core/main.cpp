@@ -21,9 +21,15 @@ const ModLoader *get_mod_loader() {
 }
 
 // Potentially causing antiviruses to believe jeode uses anti-debuggers?
+// Should help that it's only in debug builds
 static LONG WINAPI jeode_crash_handler(EXCEPTION_POINTERS *ep) {
 	if (ep && ep->ExceptionRecord) {
 		DWORD code = ep->ExceptionRecord->ExceptionCode;
+
+		// 0x40010006 = DBG_PRINTEXCEPTION_C
+		// 0xE06D7363 = msvc normal throw / catch
+		if (code == 0x40010006 || code == 0xE06D7363) return EXCEPTION_CONTINUE_SEARCH;
+
 		void *addr = ep->ExceptionRecord->ExceptionAddress;
 		spdlog::debug("[exception] code=0x{:08X} at address={}", code, addr);
 
@@ -50,7 +56,12 @@ static LONG WINAPI jeode_crash_handler(EXCEPTION_POINTERS *ep) {
 
 static DWORD WINAPI init_thread(LPVOID) {
 	log_init(g_config.debug);
-	AddVectoredExceptionHandler(1, jeode_crash_handler); // Only use this when making debug builds
+
+	// exception handler if debug build
+	// if (std::string(JEODE_VERSION) != "0.0.0.0") {
+	AddVectoredExceptionHandler(1, jeode_crash_handler);
+	// }
+
 	spdlog::info("[main] jeode initializing (gameDir='{}')", g_gameDir.string());
 
 	overlay_init(g_gameDir / "jeode");

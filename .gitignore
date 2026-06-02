@@ -3,3 +3,4 @@ build/
 examples/*/*.dll
 *.exe
 *.zip
+.luarc.json
