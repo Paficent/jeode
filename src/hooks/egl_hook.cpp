@@ -137,7 +137,7 @@ static void imgui_frame() {
 	}
 
 	void (*cb)() = g_imgui_frame_cb;
-	if (cb) cb();
+	if (cb && g_visible) cb();
 
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
