@@ -1,10 +1,11 @@
-// TODO: more metamethods (especially eq that points directly to .value)
+// TODO: more metamethods (especially comparison)
 
 #include "widgets.h"
 
 #include "../../../lua/game_lua.h"
 
 #include <cstring>
+#include <lua.h>
 #include <spdlog/spdlog.h>
 
 static const char *STATE_MT_KEY = "jeode.ui.state";
@@ -92,6 +93,7 @@ static int state_on_change(lua_State *L) {
 	return 0;
 }
 
+// metamethods below:
 static int state_index(lua_State *L) {
 	if (lua_type(L, 2) == LUA_TSTRING) {
 		const char *key = lua_tostring(L, 2);
@@ -154,6 +156,27 @@ static int state_tostring(lua_State *L) {
 	}
 }
 
+static int state_call(lua_State *L) {
+	// get: savedState()
+	if (lua_isnone(L, 2)) {
+		ui_state_push_value(L, 1);
+		return 1;
+	}
+
+	// set: savedState(v)
+	lua_settop(L, 2);
+	ui_state_set_value(L, 1);
+	return 1;
+}
+
+static int state_eq(lua_State *L) {
+	// both args guranteed to be states
+	lua_rawgeti(L, 1, 1); // a.value
+	lua_rawgeti(L, 2, 1); // b.value
+	lua_pushboolean(L, lua_equal(L, -2, -1));
+	return 1;
+}
+
 void ui_state_init_metatable(lua_State *L) {
 	luaL_getmetatable(L, STATE_MT_KEY);
 	if (!lua_isnil(L, -1)) {
@@ -173,7 +196,13 @@ void ui_state_init_metatable(lua_State *L) {
 	lua_pushcfunction(L, state_tostring);
 	lua_setfield(L, -2, "__tostring");
 
-	lua_pushliteral(L, "jeode.ui.state");
+	lua_pushcfunction(L, state_call);
+	lua_setfield(L, -2, "__call");
+
+	lua_pushcfunction(L, state_eq);
+	lua_setfield(L, -2, "__eq");
+
+	lua_pushliteral(L, "ui.state");
 	lua_setfield(L, -2, "__metatable");
 
 	lua_pop(L, 1);
@@ -194,7 +223,11 @@ static int l_state(lua_State *L) {
 
 	ui_state_init_metatable(L);
 
-	lua_newtable(L);
+	// TODO: FIX THIS
+	// IMPORTANT: have to allocate a hash node. lua_newtable would just point to the static linked dummynode
+	// MSM's lua doesnt recognize it for some reason --> MSM's newkey tries to write "value" key to libjeode
+	// readonly memory = crash
+	lua_createtable(L, 2, 1);
 
 	lua_pushvalue(L, 1);
 	lua_rawseti(L, -2, 1);

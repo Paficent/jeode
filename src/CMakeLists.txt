@@ -47,7 +47,6 @@ add_library(jeode SHARED
     env/api/ui/checkbox.cpp
     env/api/ui/child.cpp
     env/api/ui/code_editor.cpp
-    env/api/ui/color.cpp
     env/api/ui/dropdown.cpp
     env/api/ui/input.cpp
     env/api/ui/layout.cpp

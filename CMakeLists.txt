@@ -30,7 +30,8 @@ FetchContent_Declare(imgui # TODO: patching may not be neccesary if hooked at a 
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
       GIT_TAG        v1.92.6
       GIT_SHALLOW    TRUE
-      PATCH_COMMAND  sh -c "patch -p3 --forward -i '${CMAKE_SOURCE_DIR}/cmake/imgui_angle_loader.patch' || true")
+      PATCH_COMMAND  sh -c "patch -p3 --forward -i '${CMAKE_SOURCE_DIR}/cmake/imgui_angle_loader.patch'")
+      # PATCH_COMMAND  sh -c "patch -p3 --forward -i '${CMAKE_SOURCE_DIR}/cmake/imgui_angle_loader.patch' || true")
 
 FetchContent_Declare(imgui_coloredit # TODO: this library has so many flaws & I plan to move overlay to a seperate mod
   GIT_REPOSITORY https://github.com/BalazsJako/ImGuiColorTextEdit.git

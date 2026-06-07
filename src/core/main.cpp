@@ -58,7 +58,7 @@ static DWORD WINAPI init_thread(LPVOID) {
 	log_init(g_config.debug);
 
 	// exception handler if debug build
-	// if (std::string(JEODE_VERSION) != "0.0.0.0") {
+	// if (std::string(JEODE_VERSION) == "0.0.0.0") {
 	AddVectoredExceptionHandler(1, jeode_crash_handler);
 	// }
 

@@ -259,27 +259,10 @@ void ui_draw_frame() {
 
 void ui_api_init() {
 	s_table_fns = {
-		ui_window_fn(),
-		ui_child_fn(),
-		ui_text_fn(),
-		ui_button_fn(),
-		ui_checkbox_fn(),
-		ui_input_fn(),
-		ui_slider_fn(),
-		ui_color_fn(),
-		ui_dropdown_fn(),
-		ui_tab_bar_fn(),
-		ui_tab_item_fn(),
-		ui_tree_fn(),
-		ui_separator_fn(),
-		ui_same_line_fn(),
-		ui_spacing_fn(),
-		ui_indent_fn(),
-		ui_tooltip_fn(),
-		ui_code_editor_fn(),
-		ui_state_fn(),
-		{"register", l_register},
-		{"disconnect", l_disconnect},
+		ui_window_fn(),	 ui_child_fn(),		  ui_text_fn(),		 ui_button_fn(),		   ui_checkbox_fn(),
+		ui_input_fn(),	 ui_slider_fn(),	  ui_dropdown_fn(),	 ui_tab_bar_fn(),		   ui_tab_item_fn(),
+		ui_tree_fn(),	 ui_separator_fn(),	  ui_same_line_fn(), ui_spacing_fn(),		   ui_indent_fn(),
+		ui_tooltip_fn(), ui_code_editor_fn(), ui_state_fn(),	 {"register", l_register}, {"disconnect", l_disconnect},
 	};
 	s_table.name = "ui";
 	s_table.functions = s_table_fns.data();
