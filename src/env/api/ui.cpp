@@ -155,13 +155,49 @@ static int event_returner(lua_State *L) {
 	return 1;
 }
 
+// widget:addTooltip(text) | returns self for chaining
+// works with every widget, relies on the self.hovered property
+// kind of breaks the whole "immediate" idea but for the best
+static int widget_add_tooltip(lua_State *L) {
+	luaL_checktype(L, 1, LUA_TTABLE);
+	const char *text = luaL_checkstring(L, 2);
+
+	lua_getfield(L, 1, "hovered");
+	bool hovered = false;
+	if (lua_isfunction(L, -1)) {
+		lua_call(L, 0, 1);
+		hovered = lua_toboolean(L, -1) != 0;
+	} else if (lua_isboolean(L, -1)) {
+		hovered = lua_toboolean(L, -1) != 0;
+	}
+	lua_pop(L, 1);
+
+	if (hovered) {
+		ImGui::SetTooltip("%s", text);
+	}
+
+	lua_pushvalue(L, 1);
+	return 1;
+}
+
+static int s_add_tooltip_ref = LUA_NOREF;
+
+static void ensure_widget_helpers(lua_State *L) {
+	if (s_add_tooltip_ref != LUA_NOREF) return;
+	lua_pushcfunction(L, widget_add_tooltip);
+	s_add_tooltip_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+}
+
 int ui_push_widget(lua_State *L, const UiEvent *events, int n) {
-	lua_createtable(L, 0, n);
+	ensure_widget_helpers(L);
+	lua_createtable(L, 0, n + 1);
 	for (int i = 0; i < n; i++) {
 		lua_pushboolean(L, events[i].value ? 1 : 0);
 		lua_pushcclosure(L, event_returner, 1);
 		lua_setfield(L, -2, events[i].name);
 	}
+	lua_rawgeti(L, LUA_REGISTRYINDEX, s_add_tooltip_ref);
+	lua_setfield(L, -2, "addTooltip");
 	return 1;
 }
 
@@ -259,10 +295,25 @@ void ui_draw_frame() {
 
 void ui_api_init() {
 	s_table_fns = {
-		ui_window_fn(),	 ui_child_fn(),		  ui_text_fn(),		 ui_button_fn(),		   ui_checkbox_fn(),
-		ui_input_fn(),	 ui_slider_fn(),	  ui_dropdown_fn(),	 ui_tab_bar_fn(),		   ui_tab_item_fn(),
-		ui_tree_fn(),	 ui_separator_fn(),	  ui_same_line_fn(), ui_spacing_fn(),		   ui_indent_fn(),
-		ui_tooltip_fn(), ui_code_editor_fn(), ui_state_fn(),	 {"register", l_register}, {"disconnect", l_disconnect},
+		ui_window_fn(),
+		ui_child_fn(),
+		ui_text_fn(),
+		ui_button_fn(),
+		ui_checkbox_fn(),
+		ui_input_fn(),
+		ui_slider_fn(),
+		ui_dropdown_fn(),
+		ui_tab_bar_fn(),
+		ui_tab_item_fn(),
+		ui_tree_fn(),
+		ui_separator_fn(),
+		ui_same_line_fn(),
+		ui_spacing_fn(),
+		ui_indent_fn(),
+		ui_code_editor_fn(),
+		ui_state_fn(),
+		{"register", l_register},
+		{"disconnect", l_disconnect},
 	};
 	s_table.name = "ui";
 	s_table.functions = s_table_fns.data();

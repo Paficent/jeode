@@ -54,7 +54,6 @@ add_library(jeode SHARED
     env/api/ui/state.cpp
     env/api/ui/tabs.cpp
     env/api/ui/text.cpp
-    env/api/ui/tooltip.cpp
     env/api/ui/tree.cpp
     env/api/ui/window.cpp
     lua/game_lua.cpp
