@@ -4,7 +4,6 @@
 #include "../lua/game_lua.h"
 #include "../lua/thread.h"
 #include "api.h"
-#include "api/file.h"
 
 extern "C" {
 #include <lua.h>
@@ -246,6 +245,33 @@ env.print = function(...)
     _logfn(modId, table.concat(parts, '\t'))
 end
 
+-- deprecated API aliases
+local function deprecate(newTbl, newName, func)
+    local seen = false
+    return function(...)
+        if not seen then -- slight overhead but stops spamming
+            seen = true
+            _logfn(modId, "This function is deprecated in favor of " .. newTbl .. "." .. newName ..
+                   ". See the Jeode API reference: https://paficent.github.io/jeode/api/" .. newTbl .. "/")
+        end
+        return func(...)
+    end
+end
+
+env.file = {}
+for name, func in pairs(fs) do
+    if type(func) == "function" then
+        env.file[name] = deprecate("fs", name, func)
+    else
+        env.file[name] = func
+    end
+end
+
+env.mod = {
+    getRoot = deprecate("jeode", "getModPath", jeode.getModPath),
+    getId = deprecate("jeode", "getModId", jeode.getModId)
+}
+
 local chunk, err = _loadchunk(modRoot, entry)
 if not chunk then error("failed to load entry '" .. entry .. "': " .. tostring(err)) end
 setfenv(chunk, env)
@@ -292,7 +318,36 @@ end
 )LUA";
 
 static const char EXEC_BOOTSTRAP_POST[] = R"LUA(
+
+-- deprecated API aliases
+local function deprecate(newTbl, newName, func)
+    local seen = false
+    return function(...)
+        if not seen then -- slight overhead but stops spamming
+            seen = true
+            _elog("This function is deprecated in favor of " .. newTbl .. "." .. newName ..
+                    ". See the Jeode API reference: https://paficent.github.io/jeode/api/" .. newTbl .. "/")
+        end
+        return func(...)
+    end
+end
+
+env.file = {}
+for name, func in pairs(fs) do
+    if type(func) == "function" then
+        env.file[name] = deprecate("fs", name, func)
+    else
+        env.file[name] = func
+    end
+end
+
+env.mod = {
+    getRoot = deprecate("jeode", "getModPath", jeode.getModPath),
+    getId = deprecate("jeode", "getModId", jeode.getModId)
+}
+
 setfenv(chunk, env)
+
 return chunk
 )LUA";
 
@@ -396,7 +451,6 @@ void Environment::load_mods(lua_State *L, const ModLoader *loader, const std::st
 		std::string rootStr = canonRoot.generic_string();
 
 		set_mod_context(manifest.id, "mods/" + modPath.filename().string());
-		file_api_set_mod_root(m_mod_root.c_str());
 
 		set_global_string(L, "__MOD_ID", manifest.id.c_str());
 		set_global_string(L, "__MOD_ROOT", rootStr.c_str());
@@ -515,7 +569,6 @@ void Environment::execute(const std::string &code) {
 		}
 
 		set_mod_context("executor", "mods/executor");
-		file_api_set_mod_root("mods/executor");
 
 		int base = lua_gettop(L);
 
@@ -534,7 +587,6 @@ void Environment::execute(const std::string &code) {
 			overlay_executor_log(std::string("[error] ") + (err ? err : "executor load error"));
 			game_lua_settop(L, base);
 			clear_mod_context();
-			file_api_clear_mod_root();
 			return;
 		}
 
@@ -544,14 +596,12 @@ void Environment::execute(const std::string &code) {
 			overlay_executor_log(std::string("[error] ") + (err ? err : "executor runtime error"));
 			game_lua_settop(L, base);
 			clear_mod_context();
-			file_api_clear_mod_root();
 			return;
 		}
 
 		if (!lua_isfunction(L, -1)) {
 			game_lua_settop(L, base);
 			clear_mod_context();
-			file_api_clear_mod_root();
 			return;
 		}
 
@@ -565,7 +615,6 @@ void Environment::execute(const std::string &code) {
 			overlay_executor_log(std::string("[error] ") + (err ? err : "executor runtime error"));
 			game_lua_settop(L, base);
 			clear_mod_context();
-			file_api_clear_mod_root();
 			return;
 		}
 
@@ -581,6 +630,5 @@ void Environment::execute(const std::string &code) {
 
 		game_lua_settop(L, base);
 		clear_mod_context();
-		file_api_clear_mod_root();
 	});
 }

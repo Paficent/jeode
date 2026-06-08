@@ -8,7 +8,7 @@ trust of the author and the security of their accounts.
 
 -- urlBase can be anything, but a GitHub repository is best practice
 local urlBase = "https://raw.githubusercontent.com/Paficent/jeode/main/examples/auto-updater/"
-local root, modules, sources = mod.getRoot(), {}, {}
+local root, modules, sources = jeode.getModPath(), {}, {}
 
 local function fetch(f)
     local response = net.request(urlBase .. f)
@@ -26,7 +26,7 @@ for _, src in ipairs(sources) do
 
     -- caches the updated file
     if content and #content > 0 then
-        file.write(root .. "/" .. src, content)
+        fs.write(root .. "/" .. src, content)
     end
 
     -- loads lua scripts via require

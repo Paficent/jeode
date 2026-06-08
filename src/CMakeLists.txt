@@ -37,8 +37,7 @@ add_library(jeode SHARED
     env/sandbox.cpp
     env/api.cpp
     env/api/console.cpp
-    env/api/file.cpp
-    env/api/mod.cpp
+    env/api/fs.cpp
     env/api/jeode.cpp
     env/api/net.cpp
     env/api/task.cpp

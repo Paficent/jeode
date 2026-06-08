@@ -4,7 +4,7 @@
 #include "../../lua/game_lua.h"
 #include "../api.h"
 #include "../environment.h"
-#include "file.h"
+// #include "fs.h"
 
 extern "C" {
 #include <lauxlib.h>
@@ -34,17 +34,17 @@ static int l_run_as_mod(lua_State *L) {
 
 	std::string root = "mods/" + mod->getPath().filename().string();
 	get_environment().set_mod_context(mod->getId(), root);
-	file_api_set_mod_root(root.c_str());
+	// file_api_set_mod_root(root.c_str());
 
 	lua_pushvalue(L, 2);
 	int status = game_lua_pcall(L, 0, 0, 0);
 
 	if (prev_id.empty()) {
 		get_environment().clear_mod_context();
-		file_api_clear_mod_root();
+		// file_api_clear_mod_root();
 	} else {
 		get_environment().set_mod_context(prev_id, prev_root);
-		file_api_set_mod_root(prev_root.c_str());
+		// file_api_set_mod_root(prev_root.c_str());
 	}
 
 	if (status != 0) return lua_error(L);
@@ -116,15 +116,28 @@ static int l_get_mod_info(lua_State *L) {
 	return 1;
 }
 
+static int l_get_mod_path(lua_State *L) {
+	const std::string &root = get_environment().mod_root();
+	lua_pushstring(L, root.c_str());
+	return 1;
+}
+
+static int l_get_mod_id(lua_State *L) {
+	const std::string &id = get_environment().mod_id();
+	lua_pushstring(L, id.c_str());
+	return 1;
+}
+
 void jeode_api_init(const ModLoader *loader) {
+	spdlog::debug("[jeode_api] early init began");
 	s_loader = loader;
 	spdlog::debug("[jeode_api] initialized");
 }
 
-static const LuaApiFunction JEODE_FUNCTIONS[] = {
-	{"runAsMod", l_run_as_mod}, {"registerGlobal", l_register_global}, {"getVersion", l_get_version},
-	{"getMods", l_get_mods},	{"getModInfo", l_get_mod_info},
-};
+static const LuaApiFunction JEODE_FUNCTIONS[] = {{"runAsMod", l_run_as_mod},	 {"registerGlobal", l_register_global},
+												 {"getVersion", l_get_version},	 {"getMods", l_get_mods},
+												 {"getModInfo", l_get_mod_info}, {"getModPath", l_get_mod_path},
+												 {"getModId", l_get_mod_id}};
 
 static const LuaApiTable JEODE_TABLE = {
 	"jeode",

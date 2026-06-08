@@ -145,14 +145,14 @@ end
 
 
 local function dump(name, tbl)
-    local path = mod.getRoot() .. "/" .. name .. ".lua"
+    local path = jeode.getModPath() .. "/" .. name .. ".lua"
     local ok, result = pcall(TableToString, tbl)
     if ok then
         result = "return " .. result .. "\n"
-        file.write(path, result)
+        fs.write(path, result)
         print("[ok] " .. name .. " (" .. #result .. " bytes)")
     else
-        file.write(path, "-- dump error: " .. tostring(result) .. "\n")
+        fs.write(path, "-- dump error: " .. tostring(result) .. "\n")
         print("[err] " .. name .. ": " .. tostring(result))
     end
 end
