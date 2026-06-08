@@ -54,7 +54,7 @@ Jeode is completley open source under the [BSL-1.0 License](https://github.com/P
 
     ---
 
-    :octicons-arrow-right-24: [Join the discussion](community/)
+    :octicons-arrow-right-24: [Explore](community/)
 
 </div>
 

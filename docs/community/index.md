@@ -36,4 +36,4 @@ If you have a question, or found a bug, or are just interested in modding you ca
 
 ### Support the project
 
-Jeode is free and open source. If you'd like to chip in, tipping me on [Ko-fi](https://ko-fi.com/paficent) goes a long way.
+Jeode is free and open source. If you'd like to chip in, tipping the maintainer on [Ko-fi](https://ko-fi.com/paficent) goes a long way.
