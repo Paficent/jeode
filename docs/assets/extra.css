@@ -1,0 +1,8 @@
+/* Tint inline code slightly purple */
+.md-typeset code {
+    background-color: color-mix(
+        in srgb,
+        var(--md-primary-fg-color) 10%,
+        transparent
+    );
+}

@@ -252,7 +252,7 @@ local function deprecate(newTbl, newName, func)
         if not seen then -- slight overhead but stops spamming
             seen = true
             _logfn(modId, "This function is deprecated in favor of " .. newTbl .. "." .. newName ..
-                   ". See the Jeode API reference: https://paficent.github.io/jeode/api/" .. newTbl .. "/")
+                   ". See the Jeode API reference: https://paficent.github.io/jeode/api/lua" .. newTbl .. "/")
         end
         return func(...)
     end
@@ -326,7 +326,7 @@ local function deprecate(newTbl, newName, func)
         if not seen then -- slight overhead but stops spamming
             seen = true
             _elog("This function is deprecated in favor of " .. newTbl .. "." .. newName ..
-                    ". See the Jeode API reference: https://paficent.github.io/jeode/api/" .. newTbl .. "/")
+                    ". See the Jeode API reference: https://paficent.github.io/jeode/api/lua" .. newTbl .. "/")
         end
         return func(...)
     end

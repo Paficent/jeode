@@ -4,3 +4,5 @@ examples/*/*.dll
 *.exe
 *.zip
 .luarc.json
+site/
+.cache/
